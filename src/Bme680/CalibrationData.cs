@@ -1,35 +1,45 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Bme680
+﻿namespace Bme680
 {
     // TODO: data types correct?
     internal class CalibrationData
     {
-        public ushort ParH1 { get; set; }
-        public ushort ParH2 { get; set; }
-        public sbyte ParH3 { get; set; }
-        public sbyte ParH4 { get; set; }
-        public sbyte ParH5 { get; set; }
-        public byte ParH6 { get; set; }
-        public sbyte ParH7 { get; set; }
+        // humidity calibration registers
+        public ushort ParH1 { get; private set; }
+        public ushort ParH2 { get; private set; }
+        public sbyte ParH3 { get; private set; }
+        public sbyte ParH4 { get; private set; }
+        public sbyte ParH5 { get; private set; }
+        public byte ParH6 { get; private set; }
+        public sbyte ParH7 { get; private set; }
+
+        // gas calibration registers
         public sbyte ParGh1 { get; set; }
         public short ParGh2 { get; set; }
         public sbyte ParGh3 { get; set; }
-        public ushort ParT1 { get; set; }
-        public short ParT2 { get; set; }
-        public sbyte ParT3 { get; set; }
-        public ushort ParP1 { get; set; }
-        public short ParP2 { get; set; }
-        public sbyte ParP3 { get; set; }
-        public short ParP4 { get; set; }
-        public short ParP5 { get; set; }
-        public sbyte ParP6 { get; set; }
-        public sbyte ParP7 { get; set; }
-        public short ParP8 { get; set; }
-        public short ParP9 { get; set; }
-        public byte ParP10 { get; set; }
+
+        // temperature calibration registers
+        public ushort ParT1 { get; private set; }
+        public short ParT2 { get; private set; }
+        public sbyte ParT3 { get; private set; }
+
+        // pressure calibration registers
+        public ushort ParP1 { get; private set; }
+        public short ParP2 { get; private set; }
+        public sbyte ParP3 { get; private set; }
+        public short ParP4 { get; private set; }
+        public short ParP5 { get; private set; }
+        public sbyte ParP6 { get; private set; }
+        public sbyte ParP7 { get; private set; }
+        public short ParP8 { get; private set; }
+        public short ParP9 { get; private set; }
+        public byte ParP10 { get; private set; }
+
+        // heater range
+        public byte ResHeatRange { get; private set; }
+        // heater resistance correction factor
+        public sbyte ResHeatVal { get; private set; }
+        // range switching error
+        public sbyte RangeSwErr { get; private set; }
 
         internal void ReadFromDevice(Bme680 bme680)
         {
@@ -63,6 +73,15 @@ namespace Bme680
             ParP8 = (short)bme680.Read16BitsFromRegister((byte)Register.PAR_P8);
             ParP9 = (short)bme680.Read16BitsFromRegister((byte)Register.PAR_P9);
             ParP10 = bme680.Read8BitsFromRegister((byte)Register.PAR_P10);
+
+            // load heater calibration data
+            var rangeReg = bme680.Read8BitsFromRegister((byte)Register.ADDR_RES_HEAT_RANGE_ADDR);
+            ResHeatRange = (byte)((rangeReg & (byte)Bitmask.RHRANGE) >> 4);
+
+            var rangeSwReg = bme680.Read8BitsFromRegister((byte)Register.ADDR_RANGE_SW_ERR_ADDR);
+            RangeSwErr = (sbyte)((rangeSwReg & (byte)Bitmask.RSERROR) >> 4);
+
+            ResHeatVal = (sbyte) bme680.Read8BitsFromRegister((byte) Register.ADDR_RES_HEAT_VAL_ADDR);
         }
     }
 

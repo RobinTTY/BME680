@@ -40,10 +40,14 @@
         CONFIG = 0x75,
         RESET = 0xE0,
 
-        PRESS = 0x1F,   // 20bit buff[0] = 1d | buff[1] = 1e | buff[2] = 1F
-        TEMP = 0x22,    // 20bit buff[5] = 22
-        HUM = 0x25,     // 20bit buff[8] = 25
-        GAS_RES = 0x2A,  // 8bit buff[13] = 2A
-        GAS_RANGE = 0x2B // mask! 
+        PRESS = 0x1F,           // 20bit buff[0] = 1d | buff[1] = 1e | buff[2] = 1F
+        TEMP = 0x22,            // 20bit buff[5] = 22
+        HUM = 0x25,             // 20bit buff[8] = 25
+        GAS_RES = 0x2A,         // 8bit buff[13] = 2A
+        GAS_RANGE = 0x2B,       // mask!
+
+        ADDR_RES_HEAT_VAL_ADDR = 0x00,
+        ADDR_RES_HEAT_RANGE_ADDR = 0x02,
+        ADDR_RANGE_SW_ERR_ADDR = 0x04
     }
 }
