@@ -1,5 +1,8 @@
 ﻿// Ported from https://github.com/BoschSensortec/BME680_driver/blob/master/bme680.c
-
+// TODO: Check page 15 of datasheet
+// "It is highly recommended to set first osrs_h<2:0> followed by osrs_t<2:0> and osrs_p<2:0>
+// in one write command (see Section 3.3)"
+// TODO: implement SPI maybe, create example, create Readme.md
 
 using System;
 using System.Buffers.Binary;
@@ -13,10 +16,10 @@ namespace Bme680
     public class Bme680 : IDisposable
     {
 
-        private readonly I2cDevice _i2cDevice;
-        private readonly SpiDevice _spiDevice;
+        private I2cDevice _i2cDevice;
+        private SpiDevice _spiDevice;
         private bool _initialized;
-        private readonly CommunicationProtocol _protocol;
+        private CommunicationProtocol _protocol;
         private readonly CalibrationData _calibrationData;
         private int _temperatureFine;
         
@@ -51,21 +54,7 @@ namespace Bme680
         /// </summary>
         public void InitDevice()
         {
-            byte readSignature;
-
-            switch (_protocol)
-            {
-                case CommunicationProtocol.I2C:
-                    _i2cDevice.WriteByte((byte)Register.CHIPID);
-                    readSignature = _i2cDevice.ReadByte();
-                    break;
-
-                case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            var readSignature = Read8BitsFromRegister((byte)Register.CHIP_ID);
 
             if (readSignature != DeviceId)
                 throw new Exception($"Device ID {readSignature} is not the same as expected {DeviceId}. Please check if you are using the right device.");
@@ -79,20 +68,9 @@ namespace Bme680
         /// </summary>
         public void TriggerSoftReset()
         {
-            switch (_protocol)
-            {
-                // TODO: do we need a delay after resetting? test read directly after reset
-                case CommunicationProtocol.I2C:
-                    _i2cDevice.Write(new[] { (byte)Register.RESET, (byte)0xB6 });
-                    _initialized = false;
-                    break;
-
-                case CommunicationProtocol.Spi:
-                    throw new ArgumentOutOfRangeException();
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            // TODO: do we need a delay after resetting? test read directly after reset
+            Write8BitsToRegister((byte)Register.RESET, 0xB6);
+            _initialized = false;
         }
 
         /// <summary>
@@ -105,18 +83,7 @@ namespace Bme680
             status = (byte)(status & 0b1111_1100);
             status = (byte)(status & (byte)powerMode);
 
-            switch (_protocol)
-            {
-                case CommunicationProtocol.I2C:
-                    _i2cDevice.Write(new[] { (byte)Register.CTRL_MEAS, status });
-                    break;
-
-                case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
         }
 
         /// <summary>
@@ -128,18 +95,7 @@ namespace Bme680
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
             status = (byte)(status & 0b000_00011);
 
-            // TODO: test this
-            switch ((PowerMode)status)
-            {
-                case PowerMode.Sleep:
-                    return PowerMode.Sleep;
-
-                case PowerMode.Forced:
-                    return PowerMode.Forced;
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            return (PowerMode)status;
         }
 
         /// <summary>
@@ -149,23 +105,10 @@ namespace Bme680
         public void SetTemperatureSampling(Sampling sampling)
         {
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            // reset relevant bits to zero
             status = (byte)(status & 0b0001_1111);
-            // shift new value to right position and or it to add the bits on the non relevant positions
             status = (byte)(status | (byte)sampling << 5);
 
-            switch (_protocol)
-            {
-                case CommunicationProtocol.I2C:
-                    _i2cDevice.Write(new[] { (byte)Register.CTRL_MEAS, status });
-                    break;
-
-                case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
         }
 
         /// <summary>
@@ -189,18 +132,7 @@ namespace Bme680
             status = (byte)(status & 0b1110_0011);
             status = (byte)(status | (byte)sampling << 2);
 
-            switch (_protocol)
-            {
-                case CommunicationProtocol.I2C:
-                    _i2cDevice.Write(new[] { (byte)Register.CTRL_MEAS, status });
-                    break;
-
-                case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
         }
 
         /// <summary>
@@ -224,18 +156,7 @@ namespace Bme680
             status = (byte)(status & 0b1111_1000);
             status = (byte)(status | (byte)sampling);
 
-            switch (_protocol)
-            {
-                case CommunicationProtocol.I2C:
-                    _i2cDevice.Write(new[] { (byte)Register.CTRL_HUM, status });
-                    break;
-
-                case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            Write8BitsToRegister((byte)Register.CTRL_HUM, status);
         }
 
         /// <summary>
@@ -263,24 +184,13 @@ namespace Bme680
         /// measurements but not humidity and gas measurements.
         /// </summary>
         /// <param name="coefficient"></param>
-        public void SetFilter(FilterCoefficient coefficient)
+        public void SetFilterCoefficient(FilterCoefficient coefficient)
         {
             var filter = Read8BitsFromRegister((byte)Register.CONFIG);
             filter = (byte)(filter & 0b1110_0011);
             filter = (byte)(filter | (byte)coefficient << 2);
 
-            switch (_protocol)
-            {
-                case CommunicationProtocol.I2C:
-                    _i2cDevice.Write(new[] { (byte)Register.CONFIG, filter });
-                    break;
-
-                case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            Write8BitsToRegister((byte)Register.CONFIG, filter);
         }
 
         /// <summary>
@@ -383,11 +293,12 @@ namespace Bme680
             var gasRange = Read8BitsFromRegister((byte)Register.GAS_RANGE);
 
             var gasResistance = (g1 << 2) + (g2 >> 6);
-            gasRange &= (byte)Bitmask.GAS_RANGE;
+            gasRange &= (byte)Mask.GAS_RANGE;
 
             return CalculateGasResistance(gasResistance, gasRange);
         }
 
+        // TODO: check input variable type
         // TODO: Check if this summary applies
         /// <summary>
         ///  Returns the temperature. Resolution is 0.01 DegC. Output value of “5123” equals 51.23 degrees celsius.
@@ -408,6 +319,7 @@ namespace Bme680
             return Temperature.FromCelsius(0);
         }
 
+        // TODO: check input variable type
         // TODO: Check if this summary applies
         /// <summary>
         ///  Returns the pressure in Pa, in Q24.8 format (24 integer bits and 8 fractional bits).
@@ -437,6 +349,7 @@ namespace Bme680
             return pressure;
         }
 
+        // TODO: check input variable type
         private double CalculateHumidity(int adcHumidity)
         {
             var tempComp = _temperatureFine / 5120.0;
@@ -455,6 +368,7 @@ namespace Bme680
             return humidity;
         }
 
+        // TODO: check input variable type
         private double CalculateGasResistance(int adcGasRes, byte gasRange)
         {
             var k1Lookup = new[] {0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0};
@@ -465,6 +379,76 @@ namespace Bme680
             var var3 = 1.0 + k2Lookup[gasRange] / 100.0;
             var gasResistance = 1.0 / (var3 * 0.000000125 * (1 << gasRange) * ((adcGasRes - 512.0) / var2 + 1.0));
 
+            return gasResistance;
+        }
+
+        // TODO: check who needs to call this method
+        // TODO: check input variable type
+        // cast to byte correct? direct test with C++ Code returns same results so probably fine
+        private byte CalculateHeaterResistance(int setTemp, int ambientTemp)
+        {
+            // limit maximum temperature to 400°C
+            if (setTemp > 400)
+                setTemp = 400;
+
+            var var1 = _calibrationData.ParGh1 / 16.0 + 49.0;
+            var var2 = _calibrationData.ParGh2 / 32768.0 * 0.0005 + 0.00235;
+            var var3 = _calibrationData.ParGh3 / 1024.0;
+            var var4 = var1 * (1.0 + var2 * setTemp);
+            var var5 = var4 + var3 * ambientTemp;
+            var heaterResistance = (byte)(3.4 * (var5 * (4.0 / (4.0 + _calibrationData.ResHeatRange)) * (1.0 / (1.0 + _calibrationData.ResHeatVal * 0.002)) - 25));
+
+            return heaterResistance;
+        }
+
+        // TODO: check who needs to call this method
+        private byte CalculateHeaterDuration(ushort duration)
+        {
+            byte factor = 0;
+            byte durationValue;
+
+            // check if value exceeds maximum duration
+            if (duration > 0xFC0)
+                durationValue = 0xFF;
+            else
+            {
+                while (duration > 0x3F)
+                {
+                    duration = (ushort)(duration >> 2);
+                    factor += 1;
+                }
+
+                durationValue = (byte)(duration + factor * 64);
+            }
+
+            return durationValue;
+        }
+
+        // TODO: implement for all 10 registers
+        private async Task SetGasConfig(GasConfiguration configuration)
+        {
+            if(ReadPowerMode() != PowerMode.Forced)
+                SetPowerMode(PowerMode.Forced);
+
+            // read ambient temperature for resistance calculation
+            var ambTemp = await ReadTemperatureAsync();
+            var heaterResistance = CalculateHeaterResistance(configuration.heaterTemp, (int) ambTemp.Celsius);
+            var heaterDuration = CalculateHeaterDuration(configuration.heaterDur);
+
+            configuration.nbConv = 0;
+
+            Write8BitsToRegister((byte)Register.RES_HEAT0, heaterResistance);
+            Write8BitsToRegister((byte)Register.GAS_WAIT0, heaterDuration);
+        }
+
+        // TODO: implement for all 10 registers
+        private GasConfiguration GetGasConfig()
+        {
+            var heaterTemp = Read8BitsFromRegister((byte)Register.RES_HEAT0);
+            var heaterDuration = Read8BitsFromRegister((byte)Register.GAS_WAIT0);
+
+            // TODO: how to do this
+            return new GasConfiguration();
         }
 
         internal byte Read8BitsFromRegister(byte register)
@@ -506,6 +490,22 @@ namespace Bme680
                             throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
                     }
 
+                case CommunicationProtocol.Spi:
+                    throw new NotImplementedException();
+
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        // TODO: write function to write 8bits to register, should cover most write operations
+        private void Write8BitsToRegister(byte register, byte data)
+        {
+            switch (_protocol)
+            {
+                case CommunicationProtocol.I2C:
+                    _i2cDevice.Write(new[] { register, data });
+                    break;
 
                 case CommunicationProtocol.Spi:
                     throw new NotImplementedException();
@@ -515,6 +515,7 @@ namespace Bme680
             }
         }
 
+        // TODO: move to new file?
         internal enum Endianness
         {
             LittleEndian,
@@ -523,6 +524,17 @@ namespace Bme680
 
         public void Dispose()
         {
+            if (_i2cDevice != null)
+            {
+                _i2cDevice.Dispose();
+                _i2cDevice = null;
+            }
+
+            if (_spiDevice != null)
+            {
+                _spiDevice.Dispose();
+                _spiDevice = null;
+            }
         }
     }
 }

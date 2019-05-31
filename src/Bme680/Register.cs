@@ -1,6 +1,7 @@
 ﻿namespace Bme680
 {
-    // Addresses differ for SPI!
+    // Adresses differ for SPI implementation but can be translated using mask, see bme680_get_regs in
+    // the Bosch C driver: https://github.com/BoschSensortec/BME680_driver/blob/master/bme680.c
     internal enum Register : byte
     {
         PAR_T1 = 0xE9,  // far off
@@ -34,7 +35,7 @@
         PAR_GH2 = 0xEB, // 2 byte switched places with GH1
         PAR_GH3 = 0xEE, // 1 byte   // 16 byte - end of region 2
 
-        CHIPID = 0xD0,
+        CHIP_ID = 0xD0,
         CTRL_HUM = 0x72,
         CTRL_MEAS = 0x74,
         CONFIG = 0x75,
@@ -46,8 +47,11 @@
         GAS_RES = 0x2A,         // 8bit buff[13] = 2A
         GAS_RANGE = 0x2B,       // mask!
 
-        ADDR_RES_HEAT_VAL_ADDR = 0x00,
-        ADDR_RES_HEAT_RANGE_ADDR = 0x02,
-        ADDR_RANGE_SW_ERR_ADDR = 0x04
+        RES_HEAT_VAL = 0x00,
+        RES_HEAT_RANGE = 0x02,
+        RANGE_SW_ERR = 0x04,
+        
+        RES_HEAT0 = 0x5A,
+        GAS_WAIT0 = 0x64
     }
 }

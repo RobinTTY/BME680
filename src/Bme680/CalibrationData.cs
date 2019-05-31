@@ -1,6 +1,5 @@
 ﻿namespace Bme680
 {
-    // TODO: data types correct?
     internal class CalibrationData
     {
         // humidity calibration registers
@@ -75,13 +74,13 @@
             ParP10 = bme680.Read8BitsFromRegister((byte)Register.PAR_P10);
 
             // load heater calibration data
-            var rangeReg = bme680.Read8BitsFromRegister((byte)Register.ADDR_RES_HEAT_RANGE_ADDR);
-            ResHeatRange = (byte)((rangeReg & (byte)Bitmask.RHRANGE) >> 4);
+            var rangeReg = bme680.Read8BitsFromRegister((byte)Register.RES_HEAT_RANGE);
+            ResHeatRange = (byte)((rangeReg & (byte)Mask.RHRANGE) >> 4);
 
-            var rangeSwReg = bme680.Read8BitsFromRegister((byte)Register.ADDR_RANGE_SW_ERR_ADDR);
-            RangeSwErr = (sbyte)((rangeSwReg & (byte)Bitmask.RSERROR) >> 4);
+            var rangeSwReg = bme680.Read8BitsFromRegister((byte)Register.RANGE_SW_ERR);
+            RangeSwErr = (sbyte)((rangeSwReg & (byte)Mask.RSERROR) >> 4);
 
-            ResHeatVal = (sbyte) bme680.Read8BitsFromRegister((byte) Register.ADDR_RES_HEAT_VAL_ADDR);
+            ResHeatVal = (sbyte) bme680.Read8BitsFromRegister((byte) Register.RES_HEAT_VAL);
         }
     }
 
