@@ -52,6 +52,11 @@
         RANGE_SW_ERR = 0x04,
         
         RES_HEAT0 = 0x5A,
-        GAS_WAIT0 = 0x64
+        GAS_WAIT0 = 0x64,
+        CTRL_GAS_0 = 0x70,
+        CTRL_GAS_1 = 0x71,
+
+        MEAS_STATUS_0 = 0x1D,
+        GAS_R_LSB = 0x2B
     }
 }

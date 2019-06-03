@@ -4,10 +4,16 @@ using System.Text;
 
 namespace Bme680
 {
-    internal class GasConfiguration
+    public class GasConfiguration
     {
-        public byte nbConv;
-        public ushort heaterTemp;
-        public ushort heaterDur;
+        internal byte NbConv;
+        public ushort HeaterTemp { get; set; }
+        public ushort HeaterDur { get; set; }
+
+        public GasConfiguration(ushort heaterTemp, ushort heaterDur)
+        {
+            HeaterTemp = heaterTemp;
+            HeaterDur = heaterDur;
+        }
     }
 }

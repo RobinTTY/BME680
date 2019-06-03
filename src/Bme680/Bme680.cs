@@ -1,8 +1,6 @@
 ﻿// Ported from https://github.com/BoschSensortec/BME680_driver/blob/master/bme680.c
-// TODO: Check page 15 of datasheet
-// "It is highly recommended to set first osrs_h<2:0> followed by osrs_t<2:0> and osrs_p<2:0>
-// in one write command (see Section 3.3)"
-// TODO: implement SPI maybe, create example, create Readme.md
+// TODO: create example, create Readme.md
+// TODO: clarify how much API surface should exist, should user have full control or just set profiles and take measurements
 
 using System;
 using System.Buffers.Binary;
@@ -18,16 +16,219 @@ namespace Bme680
 
         private I2cDevice _i2cDevice;
         private SpiDevice _spiDevice;
-        private bool _initialized;
         private CommunicationProtocol _protocol;
+
         private readonly CalibrationData _calibrationData;
         private int _temperatureFine;
+        private bool _initialized;
         
         // The BME680 uses two addresses: 0x76 (primary) and 0x77 (secondary)
         private const byte DefaultI2cAddress = 0x76;
         // The ChipId of the BME680
         private const byte DeviceId = 0x61;
-        
+
+        /// <summary>
+        /// Gets or sets whether the heater is enabled.
+        /// </summary>
+        public bool HeaterIsEnabled
+        {
+            get
+            {
+                var heaterStatus = Read8BitsFromRegister((byte)Register.CTRL_GAS_0);
+                heaterStatus = (byte)((heaterStatus & (byte)Mask.HEAT_OFF) >> 3);
+                return Convert.ToBoolean(heaterStatus);
+            }
+            set
+            {
+                var heaterStatus = Read8BitsFromRegister((byte)Register.CTRL_GAS_0);
+                heaterStatus = (byte)(heaterStatus & ((byte)Mask.HEAT_OFF ^ (byte)Mask.CLR));
+                heaterStatus = (byte)(heaterStatus | Convert.ToUInt32(value) << 4);
+
+                Write8BitsToRegister((byte)Register.CTRL_GAS_0, heaterStatus);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets whether gas conversions are enabled.
+        /// </summary>
+        public bool GasConversionIsEnabled
+        {
+            get
+            {
+                var gasConversion = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
+                gasConversion = (byte)((gasConversion & (byte)Mask.RUN_GAS) >> 4);
+                return Convert.ToBoolean(gasConversion);
+            }
+            set
+            {
+                var gasConversion = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
+                gasConversion = (byte)(gasConversion & ((byte)Mask.RUN_GAS ^ (byte)Mask.CLR));
+                gasConversion = (byte)(gasConversion | Convert.ToUInt32(value) << 4);
+
+                Write8BitsToRegister((byte)Register.CTRL_GAS_1, gasConversion);
+            }
+        }
+
+        /// <summary>
+        /// Indicates whether new data is available.
+        /// </summary>
+        public bool NewDataIsAvailable
+        {
+            get
+            {
+                var newData = Read8BitsFromRegister((byte)Register.MEAS_STATUS_0);
+                newData = (byte)(newData >> 7);
+                return Convert.ToBoolean(newData);
+            }
+        }
+
+        /// <summary>
+        /// Indicates whether a gas measurement is in process.
+        /// </summary>
+        public bool GasMeasurementInProcess
+        {
+            get
+            {
+                var gasMeasInProcess = Read8BitsFromRegister((byte)Register.MEAS_STATUS_0);
+                gasMeasInProcess = (byte)((gasMeasInProcess & (byte)Mask.GAS_MEASURING) >> 6);
+                return Convert.ToBoolean(gasMeasInProcess);
+            }
+        }
+
+        /// <summary>
+        /// Indicates whether a measurement is in process.
+        /// </summary>
+        public bool MeasurementInProcess
+        {
+            get
+            {
+                var measInProcess = Read8BitsFromRegister((byte)Register.MEAS_STATUS_0);
+                measInProcess = (byte)((measInProcess & (byte)Mask.MEASURING) >> 5);
+                return Convert.ToBoolean(measInProcess);
+            }
+        }
+
+        /// <summary>
+        /// Indicates whether a real gas conversion was performed (i.e. not a dummy one).
+        /// </summary>
+        public bool GasMeasurementIsValid
+        {
+            get
+            {
+                var gasMeasValid = Read8BitsFromRegister((byte)Register.GAS_R_LSB);
+                gasMeasValid = (byte)((gasMeasValid & (byte)Mask.GAS_VALID) >> 5);
+                return Convert.ToBoolean(gasMeasValid);
+            }
+        }
+
+        /// <summary>
+        /// Indicates whether the target heater temperature was reached.
+        /// </summary>
+        public bool HeaterIsStable
+        {
+            get
+            {
+                var heaterStable = Read8BitsFromRegister((byte)Register.GAS_R_LSB);
+                heaterStable = (byte)((heaterStable & (byte)Mask.HEAT_STAB) >> 4);
+                return Convert.ToBoolean(heaterStable);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the temperature sampling.
+        /// </summary>
+        public Sampling TemperatureSampling
+        {
+            get
+            {
+                var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
+                status = (byte)((status & (byte)Mask.TEMPERATURE_SAMPLING) >> 5);
+                return ByteToSampling(status);
+            }
+            set
+            {
+                var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
+                status = (byte)(status & ((byte)Mask.TEMPERATURE_SAMPLING ^ (byte)Mask.CLR));
+                status = (byte)(status | (byte)value << 5);
+
+                Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the humidity sampling.
+        /// </summary>
+        public Sampling HumiditySampling
+        {
+            get
+            {
+                var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
+                status = (byte)(status & (byte)Mask.HUMIDITY_SAMPLING);
+                return ByteToSampling(status);
+            }
+            set
+            {
+                var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
+                status = (byte)(status & ((byte)Mask.HUMIDITY_SAMPLING ^ (byte)Mask.CLR));
+                status = (byte)(status | (byte)value);
+
+                Write8BitsToRegister((byte)Register.CTRL_HUM, status);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the IIR filter to the given coefficient. The IIR filter affects temperature and
+        /// pressure measurements but not humidity and gas measurements. An IIR filter can suppress
+        /// disturbances (e.g. slamming of a door or wind blowing in the sensor)
+        /// </summary>
+        public FilterCoefficient FilterCoefficient
+        {
+            get
+            {
+                var filter = Read8BitsFromRegister((byte)Register.CONFIG);
+                filter = (byte)((filter & (byte)Mask.FILTER_COEFFICIENT) >> 2);
+                return (FilterCoefficient)filter;
+            }
+            set
+            {
+                var filter = Read8BitsFromRegister((byte)Register.CONFIG);
+                filter = (byte)(filter & ((byte)Mask.FILTER_COEFFICIENT ^ (byte)Mask.CLR));
+                filter = (byte)(filter | (byte)value << 2);
+
+                Write8BitsToRegister((byte)Register.CONFIG, filter);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the pressure sampling.
+        /// </summary>
+        public Sampling PressureSampling
+        {
+            get
+            {
+                var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
+                status = (byte)((status & (byte)Mask.PRESSURE_SAMPLING) >> 2);
+                return ByteToSampling(status);
+            }
+            set
+            {
+                var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
+                status = (byte)(status & ((byte)Mask.PRESSURE_SAMPLING ^ (byte)Mask.CLR));
+                status = (byte)(status | (byte)value << 2);
+
+                Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
+            }
+        }
+
+        private Sampling ByteToSampling(byte value)
+        {
+            // Values >=5 equals X16
+            if (value >= 5)
+                return Sampling.X16;
+
+            return (Sampling)value;
+        }
+
         public Bme680(I2cDevice i2cDevice)
         {
             _i2cDevice = i2cDevice;
@@ -35,14 +236,17 @@ namespace Bme680
             _protocol = CommunicationProtocol.I2C;
         }
 
-        public Bme680(SpiDevice spiDevice)
+        private Bme680(SpiDevice spiDevice)
         {
+            // not fully implemented yet, translation of memory addresses and memory page access missing
+            throw new NotImplementedException();
+
             _spiDevice = spiDevice;
             _calibrationData = new CalibrationData();
             _protocol = CommunicationProtocol.Spi;
         }
 
-        private enum CommunicationProtocol
+        public enum CommunicationProtocol
         {
             I2C,
             Spi
@@ -80,7 +284,7 @@ namespace Bme680
         public void SetPowerMode(PowerMode powerMode)
         {
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)(status & 0b1111_1100);
+            status = (byte)(status & ((byte)Mask.PWR_MODE ^ (byte)Mask.CLR));
             status = (byte)(status & (byte)powerMode);
 
             Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
@@ -93,115 +297,61 @@ namespace Bme680
         public PowerMode ReadPowerMode()
         {
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)(status & 0b000_00011);
+            status = (byte)(status & (byte)Mask.PWR_MODE);
 
             return (PowerMode)status;
         }
 
         /// <summary>
-        /// Sets the temperature sampling to the given value.
+        /// Sets a gas-sensor-heater profile.
         /// </summary>
-        /// <param name="sampling"></param>
-        public void SetTemperatureSampling(Sampling sampling)
-        {
-            var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)(status & 0b0001_1111);
-            status = (byte)(status | (byte)sampling << 5);
-
-            Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
-        }
-
-        /// <summary>
-        /// Get the sampling rate for temperature measurements.
-        /// </summary>
+        /// <param name="profile">The chosen heater profile. Ranging from 0-9.</param>
+        /// <param name="temperature">The desired temperature in °C. Ranging from 0 to 400</param>
+        /// <param name="duration">The desired heating duration in ms. Ranging from 0-4032</param>
         /// <returns></returns>
-        public Sampling ReadTemperatureSampling()
+        public async Task SetGasConfig(HeaterProfile profile, ushort temperature, ushort duration)
         {
-            var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)((status & 0b1110_0000) >> 5);
-            return ByteToSampling(status);
+            if (ReadPowerMode() != PowerMode.Forced)
+                SetPowerMode(PowerMode.Forced);
+
+            // read ambient temperature for resistance calculation
+            var ambTemp = await ReadTemperatureAsync();
+            var heaterResistance = CalculateHeaterResistance(temperature, (int)ambTemp.Celsius);
+            var heaterDuration = CalculateHeaterDuration(duration);
+
+            Write8BitsToRegister((byte)((byte)Register.RES_HEAT0 + profile), heaterResistance);
+            Write8BitsToRegister((byte)((byte)Register.GAS_WAIT0 + profile), heaterDuration);
         }
 
         /// <summary>
-        /// Sets the pressure sampling to the given value.
+        /// Gets the specified gas-sensor-heater profile.
         /// </summary>
-        /// <param name="sampling"></param>
-        public void SetPressureSampling(Sampling sampling)
+        /// <param name="profile">The chosen heater profile.</param>
+        /// <returns>The configuration of the chosen set-point or null if invalid set-point was chosen.</returns>
+        public async Task<GasConfiguration> GetGasConfig(HeaterProfile profile)
         {
-            var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)(status & 0b1110_0011);
-            status = (byte)(status | (byte)sampling << 2);
+            if (ReadPowerMode() != PowerMode.Forced)
+                SetPowerMode(PowerMode.Forced);
 
-            Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
+            // need to be converted?!
+            var heaterTemp = Read8BitsFromRegister((byte)((byte)Register.RES_HEAT0 + profile));
+            var heaterDuration = Read8BitsFromRegister((byte)((byte)Register.GAS_WAIT0 + profile));
+
+            // read ambient temperature for resistance calculation
+            var ambTemp = await ReadTemperatureAsync();
+            heaterTemp = CalculateHeaterResistance(heaterTemp, (int)ambTemp.Celsius);
+            heaterDuration = CalculateHeaterDuration(heaterDuration);
+
+            return new GasConfiguration(heaterTemp, heaterDuration);
         }
 
         /// <summary>
-        /// Get the sampling rate for pressure measurements
+        /// Selects the heater profile to be used for the next measurement.
         /// </summary>
-        /// <returns></returns>
-        public Sampling ReadPressureSampling()
+        /// <param name="profile"></param>
+        public void SelectHeaterProfile(HeaterProfile profile)
         {
-            var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)((status & 0b0001_1100) >> 2);
-            return ByteToSampling(status);
-        }
-
-        /// <summary>
-        /// Sets the humidity sampling to the given value
-        /// </summary>
-        /// <param name="sampling"></param>
-        public void SetHumiditySampling(Sampling sampling)
-        {
-            var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
-            status = (byte)(status & 0b1111_1000);
-            status = (byte)(status | (byte)sampling);
-
-            Write8BitsToRegister((byte)Register.CTRL_HUM, status);
-        }
-
-        /// <summary>
-        /// Get the sampling rate for humidity measurements
-        /// </summary>
-        /// <returns></returns>
-        public Sampling ReadHumiditySampling()
-        {
-            var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
-            status = (byte)(status & 0b0000_0111);
-            return ByteToSampling(status);
-        }
-
-        private Sampling ByteToSampling(byte value)
-        {
-            // Values >=5 equals X16
-            if (value >= 5)
-                return Sampling.X16;
-
-            return (Sampling)value;
-        }
-
-        /// <summary>
-        /// Sets the IIR filter to the given coefficient. The IIR filter affects temperature and pressure
-        /// measurements but not humidity and gas measurements.
-        /// </summary>
-        /// <param name="coefficient"></param>
-        public void SetFilterCoefficient(FilterCoefficient coefficient)
-        {
-            var filter = Read8BitsFromRegister((byte)Register.CONFIG);
-            filter = (byte)(filter & 0b1110_0011);
-            filter = (byte)(filter | (byte)coefficient << 2);
-
-            Write8BitsToRegister((byte)Register.CONFIG, filter);
-        }
-
-        /// <summary>
-        /// Get the currently set IIR filter coefficient.
-        /// </summary>
-        /// <returns></returns>
-        public FilterCoefficient ReadFilterCoefficient()
-        {
-            var filter = Read8BitsFromRegister((byte)Register.CONFIG);
-            filter = (byte)((filter & 0b0001_1100) >> 2);
-            return (FilterCoefficient)filter;
+            Write8BitsToRegister((byte)Register.CTRL_GAS_1, (byte)profile);
         }
 
         // TODO: measurements in c driver is done via read_field_data, datasheet 3.3.1 states that if
@@ -222,7 +372,7 @@ namespace Bme680
 
             // TODO: we may need to wait here for a measurement to be performed after setting power mode
             // wait for measurement to be performed
-            await Task.Delay(7); // TODO: how long do we need to wait? -> c driver -> get profile duration
+            await Task.Delay(7); // TODO: how long do we need to wait? -> c driver -> get profile duration -> dependent on oversampling
 
             // TODO: check status registers if measurement was successful
 
@@ -242,7 +392,7 @@ namespace Bme680
         /// <returns>Atmospheric pressure in Pa.</returns>
         public async Task<double> ReadPressureAsync()
         {
-            if(!_initialized)
+            if (!_initialized)
                 InitDevice();
 
             SetPowerMode(PowerMode.Forced);
@@ -261,10 +411,13 @@ namespace Bme680
             return CalculatePressure(press) / 256;
         }
 
-        // TODO: really double?
+        /// <summary>
+        /// Reads the humidity from the sensor.
+        /// </summary>
+        /// <returns>Humidity in percent.</returns>
         public async Task<double> ReadHumidityAsync()
         {
-            if(!_initialized)
+            if (!_initialized)
                 InitDevice();
 
             SetPowerMode(PowerMode.Forced);
@@ -279,17 +432,21 @@ namespace Bme680
         }
 
         // TODO: maybe name method differently
+        /// <summary>
+        /// Reads the gas resistance from the sensor.
+        /// </summary>
+        /// <returns>Gas resistance in Ohm.</returns>
         public async Task<double> ReadGasResistanceAsync()
         {
-            if(!_initialized)
+            if (!_initialized)
                 InitDevice();
 
             SetPowerMode(PowerMode.Forced);
 
             // TODO: HEAT HERE?!
             // Read 10 bit gas resistance value from registers
-            var g1 = Read8BitsFromRegister((byte) Register.GAS_RES);
-            var g2 = Read8BitsFromRegister((byte) Register.GAS_RES + sizeof(byte));
+            var g1 = Read8BitsFromRegister((byte)Register.GAS_RES);
+            var g2 = Read8BitsFromRegister((byte)Register.GAS_RES + sizeof(byte));
             var gasRange = Read8BitsFromRegister((byte)Register.GAS_RANGE);
 
             var gasResistance = (g1 << 2) + (g2 >> 6);
@@ -312,7 +469,7 @@ namespace Bme680
             var2 = var2 * var2 * (_calibrationData.ParT3 * 16.0);
 
             // TODO:
-            _temperatureFine = (int) (var1 + var2);
+            _temperatureFine = (int)(var1 + var2);
 
             var temperature = (var1 + var2) / 5120.0;
 
@@ -354,7 +511,7 @@ namespace Bme680
         {
             var tempComp = _temperatureFine / 5120.0;
             var var1 = adcHumidity - (_calibrationData.ParH1 * 16.0 + _calibrationData.ParH3 / 2.0 * tempComp);
-            var var2 = var1 * (float) (_calibrationData.ParH2 / 262144.0 * (1.0 + _calibrationData.ParH4 / 16384.0 * tempComp + _calibrationData.ParH5 / 1048576.0 * Math.Pow(tempComp, 2)));
+            var var2 = var1 * (float)(_calibrationData.ParH2 / 262144.0 * (1.0 + _calibrationData.ParH4 / 16384.0 * tempComp + _calibrationData.ParH5 / 1048576.0 * Math.Pow(tempComp, 2)));
             var var3 = _calibrationData.ParH6 / 16384.0;
             var var4 = _calibrationData.ParH7 / 2097152.0;
             var humidity = var2 + (var3 + var4 * tempComp) * var2 * var2;
@@ -371,8 +528,8 @@ namespace Bme680
         // TODO: check input variable type
         private double CalculateGasResistance(int adcGasRes, byte gasRange)
         {
-            var k1Lookup = new[] {0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0};
-            var k2Lookup = new[] {0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8,-0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+            var k1Lookup = new[] { 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0 };
+            var k2Lookup = new[] { 0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
             var var1 = 1340.0 + 5.0 * _calibrationData.RangeSwErr;
             var var2 = var1 * (1.0 + k1Lookup[gasRange] / 100.0);
@@ -424,33 +581,6 @@ namespace Bme680
             return durationValue;
         }
 
-        // TODO: implement for all 10 registers
-        private async Task SetGasConfig(GasConfiguration configuration)
-        {
-            if(ReadPowerMode() != PowerMode.Forced)
-                SetPowerMode(PowerMode.Forced);
-
-            // read ambient temperature for resistance calculation
-            var ambTemp = await ReadTemperatureAsync();
-            var heaterResistance = CalculateHeaterResistance(configuration.heaterTemp, (int) ambTemp.Celsius);
-            var heaterDuration = CalculateHeaterDuration(configuration.heaterDur);
-
-            configuration.nbConv = 0;
-
-            Write8BitsToRegister((byte)Register.RES_HEAT0, heaterResistance);
-            Write8BitsToRegister((byte)Register.GAS_WAIT0, heaterDuration);
-        }
-
-        // TODO: implement for all 10 registers
-        private GasConfiguration GetGasConfig()
-        {
-            var heaterTemp = Read8BitsFromRegister((byte)Register.RES_HEAT0);
-            var heaterDuration = Read8BitsFromRegister((byte)Register.GAS_WAIT0);
-
-            // TODO: how to do this
-            return new GasConfiguration();
-        }
-
         internal byte Read8BitsFromRegister(byte register)
         {
             byte value;
@@ -463,7 +593,9 @@ namespace Bme680
                     return value;
 
                 case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
+                    _spiDevice.WriteByte(register);
+                    value = _spiDevice.ReadByte();
+                    return value;
 
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -472,33 +604,35 @@ namespace Bme680
 
         internal ushort Read16BitsFromRegister(byte register, Endianness mode = Endianness.LittleEndian)
         {
+            Span<byte> bytes = stackalloc byte[2];
+
             switch (_protocol)
             {
                 case CommunicationProtocol.I2C:
-                    Span<byte> bytes = stackalloc byte[2];
-
                     _i2cDevice.WriteByte(register);
                     _i2cDevice.Read(bytes);
-
-                    switch (mode)
-                    {
-                        case Endianness.LittleEndian:
-                            return BinaryPrimitives.ReadUInt16LittleEndian(bytes);
-                        case Endianness.BigEndian:
-                            return BinaryPrimitives.ReadUInt16BigEndian(bytes);
-                        default:
-                            throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
-                    }
+                    break;
 
                 case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
+                    _spiDevice.WriteByte(register);
+                    _spiDevice.Read(bytes);
+                    break;
 
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+
+            switch (mode)
+            {
+                case Endianness.LittleEndian:
+                    return BinaryPrimitives.ReadUInt16LittleEndian(bytes);
+                case Endianness.BigEndian:
+                    return BinaryPrimitives.ReadUInt16BigEndian(bytes);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
+            }
         }
 
-        // TODO: write function to write 8bits to register, should cover most write operations
         private void Write8BitsToRegister(byte register, byte data)
         {
             switch (_protocol)
@@ -508,14 +642,14 @@ namespace Bme680
                     break;
 
                 case CommunicationProtocol.Spi:
-                    throw new NotImplementedException();
+                    _spiDevice.Write(new[] { register, data });
+                    break;
 
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        // TODO: move to new file?
         internal enum Endianness
         {
             LittleEndian,

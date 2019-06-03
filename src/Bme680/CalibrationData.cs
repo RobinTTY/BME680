@@ -75,13 +75,12 @@
 
             // load heater calibration data
             var rangeReg = bme680.Read8BitsFromRegister((byte)Register.RES_HEAT_RANGE);
-            ResHeatRange = (byte)((rangeReg & (byte)Mask.RHRANGE) >> 4);
+            ResHeatRange = (byte)((rangeReg & (byte)Mask.RH_RANGE) >> 4);
 
             var rangeSwReg = bme680.Read8BitsFromRegister((byte)Register.RANGE_SW_ERR);
-            RangeSwErr = (sbyte)((rangeSwReg & (byte)Mask.RSERROR) >> 4);
+            RangeSwErr = (sbyte)((rangeSwReg & (byte)Mask.RS_ERROR) >> 4);
 
             ResHeatVal = (sbyte) bme680.Read8BitsFromRegister((byte) Register.RES_HEAT_VAL);
         }
     }
-
 }

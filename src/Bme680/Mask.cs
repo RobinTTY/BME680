@@ -2,8 +2,25 @@
 {
     internal enum Mask : byte
     {
+        PWR_MODE = 0x03,
+        HEAT_OFF = 0x08,
+        RUN_GAS = 0x10,
+
+        TEMPERATURE_SAMPLING = 0xE0,
+        PRESSURE_SAMPLING = 0x1C,
+        HUMIDITY_SAMPLING = 0x07,
+
+        FILTER_COEFFICIENT = 0x1C,
+
         GAS_RANGE = 0x0F,
-        RHRANGE = 0x30,
-        RSERROR = 0xF0
+        RH_RANGE = 0x30,
+        RS_ERROR = 0xF0,
+
+        GAS_MEASURING = 0x40,
+        MEASURING = 0x20,
+        GAS_VALID = 0x20,
+        HEAT_STAB = 0x10,
+
+        CLR = 0xFF
     }
 }
