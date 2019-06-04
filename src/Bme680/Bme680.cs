@@ -6,7 +6,7 @@ using System;
 using System.Buffers.Binary;
 using System.Device.I2c;
 using System.Device.Spi;
-using System.Threading.Tasks;
+using System.Linq;
 using Iot.Units;
 
 namespace Bme680
@@ -21,7 +21,7 @@ namespace Bme680
         private readonly CalibrationData _calibrationData;
         private int _temperatureFine;
         private bool _initialized;
-        
+
         // The BME680 uses two addresses: 0x76 (primary) and 0x77 (secondary)
         private const byte DefaultI2cAddress = 0x76;
         // The ChipId of the BME680
@@ -135,6 +135,50 @@ namespace Bme680
         }
 
         /// <summary>
+        /// Gets or sets the heater profile to be used for the next measurement.
+        /// </summary>
+        public HeaterProfile CurrentHeaterProfile
+        {
+            get
+            {
+                var heaterProfile = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
+                heaterProfile = (byte)(heaterProfile & (byte)Mask.NB_CONV);
+                return (HeaterProfile)heaterProfile;
+            }
+            set
+            {
+                var heaterProfile = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
+                heaterProfile = (byte)(heaterProfile & ((byte)Mask.NB_CONV ^ (byte)Mask.CLR));
+                heaterProfile = (byte)(heaterProfile | (byte)value);
+
+                Write8BitsToRegister((byte)Register.CTRL_GAS_1, heaterProfile);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the IIR filter to the given coefficient. The IIR filter affects temperature and
+        /// pressure measurements but not humidity and gas measurements. An IIR filter can suppress
+        /// disturbances (e.g. slamming of a door or wind blowing in the sensor).
+        /// </summary>
+        public FilterCoefficient FilterCoefficient
+        {
+            get
+            {
+                var filter = Read8BitsFromRegister((byte)Register.CONFIG);
+                filter = (byte)((filter & (byte)Mask.FILTER_COEFFICIENT) >> 2);
+                return (FilterCoefficient)filter;
+            }
+            set
+            {
+                var filter = Read8BitsFromRegister((byte)Register.CONFIG);
+                filter = (byte)(filter & ((byte)Mask.FILTER_COEFFICIENT ^ (byte)Mask.CLR));
+                filter = (byte)(filter | (byte)value << 2);
+
+                Write8BitsToRegister((byte)Register.CONFIG, filter);
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the temperature sampling.
         /// </summary>
         public Sampling TemperatureSampling
@@ -173,29 +217,6 @@ namespace Bme680
                 status = (byte)(status | (byte)value);
 
                 Write8BitsToRegister((byte)Register.CTRL_HUM, status);
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the IIR filter to the given coefficient. The IIR filter affects temperature and
-        /// pressure measurements but not humidity and gas measurements. An IIR filter can suppress
-        /// disturbances (e.g. slamming of a door or wind blowing in the sensor)
-        /// </summary>
-        public FilterCoefficient FilterCoefficient
-        {
-            get
-            {
-                var filter = Read8BitsFromRegister((byte)Register.CONFIG);
-                filter = (byte)((filter & (byte)Mask.FILTER_COEFFICIENT) >> 2);
-                return (FilterCoefficient)filter;
-            }
-            set
-            {
-                var filter = Read8BitsFromRegister((byte)Register.CONFIG);
-                filter = (byte)(filter & ((byte)Mask.FILTER_COEFFICIENT ^ (byte)Mask.CLR));
-                filter = (byte)(filter | (byte)value << 2);
-
-                Write8BitsToRegister((byte)Register.CONFIG, filter);
             }
         }
 
@@ -252,7 +273,7 @@ namespace Bme680
             Spi
         }
 
-        // TODO: make private, maybe implement switches for communication device type
+        // TODO: make private, call before measurement is performed
         /// <summary>
         /// Initializes the BMP680 sensor, making it ready for use.
         /// </summary>
@@ -265,6 +286,17 @@ namespace Bme680
 
             _initialized = true;
             _calibrationData.ReadFromDevice(this);
+
+            // TODO: remove if correct
+            Console.WriteLine("Configuration values:");
+            var props = _calibrationData.GetType().GetProperties();
+            props.ToList().ForEach(prop =>
+            {
+                var propName = prop.Name;
+                var propValue = prop.GetValue(_calibrationData);
+                Console.WriteLine($"{propName}: {propValue}");
+            });
+            // TODO: remove if correct
         }
 
         /// <summary>
@@ -277,17 +309,24 @@ namespace Bme680
             _initialized = false;
         }
 
+        // TODO: this performs a measurement
         /// <summary>
         /// Sets the power mode to the given mode.
         /// </summary>
         /// <param name="powerMode"></param>
         public void SetPowerMode(PowerMode powerMode)
         {
+            if (!_initialized)
+                InitDevice();
+
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
             status = (byte)(status & ((byte)Mask.PWR_MODE ^ (byte)Mask.CLR));
             status = (byte)(status & (byte)powerMode);
 
             Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
+
+            // TODO: check status registers if measurement was successful
+
         }
 
         /// <summary>
@@ -302,21 +341,42 @@ namespace Bme680
             return (PowerMode)status;
         }
 
+        // TODO: why is time for gas measurement always added???
+        // TODO: compare with real values (check NewDataIsAvailable for measurement time)
+        public int GetProfileDuration()
+        {
+            var osToMeasCycles = new byte[] { 0, 1, 2, 4, 8, 16 };
+            
+            var measCycles = osToMeasCycles[(int)TemperatureSampling];
+            measCycles += osToMeasCycles[(int)PressureSampling];
+            measCycles += osToMeasCycles[(int)HumiditySampling];
+
+            var measDuration = measCycles * 1963;
+            measDuration += 477 * 4;                // TPH switching duration
+            measDuration += 477 * 5;                // Gas measurement duration
+            measDuration += 500;                    // get it to the closes whole number
+            measDuration /= 1000;                   // convert to ms
+            measDuration += 1;                      // wake up duration of 1ms
+
+            // TODO: mapping between HeaterProfile and HeaterProfileConfiguration
+            if (GasConversionIsEnabled)
+                measDuration += CurrentHeaterProfile;
+
+            return measDuration;
+        }
+
         /// <summary>
         /// Sets a gas-sensor-heater profile.
         /// </summary>
         /// <param name="profile">The chosen heater profile. Ranging from 0-9.</param>
-        /// <param name="temperature">The desired temperature in °C. Ranging from 0 to 400</param>
-        /// <param name="duration">The desired heating duration in ms. Ranging from 0-4032</param>
+        /// <param name="ambientTemperature">The ambient temperature.</param>
+        /// <param name="targetTemperature">The desired heater temperature in °C. Ranging from 0 to 400.</param>
+        /// <param name="duration">The desired heating duration in ms. Ranging from 0-4032.</param>
         /// <returns></returns>
-        public async Task SetGasConfig(HeaterProfile profile, ushort temperature, ushort duration)
+        public void ConfigureHeaterProfile(HeaterProfile profile, double ambientTemperature, ushort targetTemperature, ushort duration)
         {
-            if (ReadPowerMode() != PowerMode.Forced)
-                SetPowerMode(PowerMode.Forced);
-
             // read ambient temperature for resistance calculation
-            var ambTemp = await ReadTemperatureAsync();
-            var heaterResistance = CalculateHeaterResistance(temperature, (int)ambTemp.Celsius);
+            var heaterResistance = CalculateHeaterResistance(targetTemperature, (int)ambientTemperature);
             var heaterDuration = CalculateHeaterDuration(duration);
 
             Write8BitsToRegister((byte)((byte)Register.RES_HEAT0 + profile), heaterResistance);
@@ -327,33 +387,23 @@ namespace Bme680
         /// Gets the specified gas-sensor-heater profile.
         /// </summary>
         /// <param name="profile">The chosen heater profile.</param>
+        /// <param name="ambientTemperature">The ambient temperature.</param>
         /// <returns>The configuration of the chosen set-point or null if invalid set-point was chosen.</returns>
-        public async Task<GasConfiguration> GetGasConfig(HeaterProfile profile)
+        public HeaterProfileConfiguration GetHeaterProfileConfiguration(HeaterProfile profile, double ambientTemperature)
         {
-            if (ReadPowerMode() != PowerMode.Forced)
-                SetPowerMode(PowerMode.Forced);
-
             // need to be converted?!
             var heaterTemp = Read8BitsFromRegister((byte)((byte)Register.RES_HEAT0 + profile));
             var heaterDuration = Read8BitsFromRegister((byte)((byte)Register.GAS_WAIT0 + profile));
 
             // read ambient temperature for resistance calculation
-            var ambTemp = await ReadTemperatureAsync();
-            heaterTemp = CalculateHeaterResistance(heaterTemp, (int)ambTemp.Celsius);
+            heaterTemp = CalculateHeaterResistance(heaterTemp, (int)ambientTemperature);
             heaterDuration = CalculateHeaterDuration(heaterDuration);
 
-            return new GasConfiguration(heaterTemp, heaterDuration);
+            return new HeaterProfileConfiguration(heaterTemp, heaterDuration);
         }
 
-        /// <summary>
-        /// Selects the heater profile to be used for the next measurement.
-        /// </summary>
-        /// <param name="profile"></param>
-        public void SelectHeaterProfile(HeaterProfile profile)
-        {
-            Write8BitsToRegister((byte)Register.CTRL_GAS_1, (byte)profile);
-        }
-
+        // TODO: maybe it's better to do this like dht where the values are automatically assigned to
+        // TODO: corresponding properties after a reading is performed
         // TODO: measurements in c driver is done via read_field_data, datasheet 3.3.1 states that if
         // filter is enabled, resolution is 16 + (osrs_t - 1) bit, e.g. 18 bit when osrs_t is set to 3
         // this is not incorporated yet!
@@ -361,21 +411,8 @@ namespace Bme680
         /// Reads the temperature from the sensor.
         /// </summary>
         /// <returns>Temperature</returns>
-        public async Task<Temperature> ReadTemperatureAsync()
+        public Temperature ReadTemperature()
         {
-            if (!_initialized)
-                InitDevice();
-
-            // TODO: maybe don't set mode but have a wrapper which does all measurements based on
-            // a mask, see how it's done in the official driver
-            SetPowerMode(PowerMode.Forced);
-
-            // TODO: we may need to wait here for a measurement to be performed after setting power mode
-            // wait for measurement to be performed
-            await Task.Delay(7); // TODO: how long do we need to wait? -> c driver -> get profile duration -> dependent on oversampling
-
-            // TODO: check status registers if measurement was successful
-
             // Read 20 bit uncompensated temperature value from registers
             var t1 = Read16BitsFromRegister((byte)Register.TEMP, Endianness.BigEndian);
             var t2 = Read8BitsFromRegister((byte)Register.TEMP + 2 * sizeof(byte));
@@ -390,15 +427,11 @@ namespace Bme680
         ///  Reads the pressure from the sensor.
         /// </summary>
         /// <returns>Atmospheric pressure in Pa.</returns>
-        public async Task<double> ReadPressureAsync()
+        public double ReadPressure()
         {
-            if (!_initialized)
-                InitDevice();
-
-            SetPowerMode(PowerMode.Forced);
-
+            // TODO: probably best to do an initial reading on Init to define _temperatureFine
             if (_temperatureFine == int.MinValue)
-                await ReadTemperatureAsync();
+                return int.MinValue;
 
             // Read 20 bit uncompensated pressure value from registers
             var p1 = Read16BitsFromRegister((byte)Register.PRESS, Endianness.BigEndian);
@@ -407,7 +440,7 @@ namespace Bme680
             // Combine the two values, p2 is only 4 bit
             var press = (p1 << 4) + (p2 >> 4);
 
-            // TODO: why divided by 256
+            // TODO: From BME280 datasheet: Output value of "24674867" represents 24674867/256 = 96386.2 hPa
             return CalculatePressure(press) / 256;
         }
 
@@ -415,15 +448,11 @@ namespace Bme680
         /// Reads the humidity from the sensor.
         /// </summary>
         /// <returns>Humidity in percent.</returns>
-        public async Task<double> ReadHumidityAsync()
+        public double ReadHumidity()
         {
-            if (!_initialized)
-                InitDevice();
-
-            SetPowerMode(PowerMode.Forced);
-
+            // TODO: probably best to do an initial reading on Init to define _temperatureFine
             if (_temperatureFine == int.MinValue)
-                await ReadTemperatureAsync();
+                return int.MinValue;
 
             // Read 16 bit uncompensated humidity value from registers
             var hum = Read16BitsFromRegister((byte)Register.HUM, Endianness.BigEndian);
@@ -436,14 +465,8 @@ namespace Bme680
         /// Reads the gas resistance from the sensor.
         /// </summary>
         /// <returns>Gas resistance in Ohm.</returns>
-        public async Task<double> ReadGasResistanceAsync()
+        public double ReadGasResistance()
         {
-            if (!_initialized)
-                InitDevice();
-
-            SetPowerMode(PowerMode.Forced);
-
-            // TODO: HEAT HERE?!
             // Read 10 bit gas resistance value from registers
             var g1 = Read8BitsFromRegister((byte)Register.GAS_RES);
             var g2 = Read8BitsFromRegister((byte)Register.GAS_RES + sizeof(byte));
@@ -473,7 +496,7 @@ namespace Bme680
 
             var temperature = (var1 + var2) / 5120.0;
 
-            return Temperature.FromCelsius(0);
+            return Temperature.FromCelsius(temperature);
         }
 
         // TODO: check input variable type
@@ -558,7 +581,6 @@ namespace Bme680
             return heaterResistance;
         }
 
-        // TODO: check who needs to call this method
         private byte CalculateHeaterDuration(ushort duration)
         {
             byte factor = 0;

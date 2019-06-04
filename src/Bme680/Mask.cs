@@ -11,6 +11,7 @@
         HUMIDITY_SAMPLING = 0x07,
 
         FILTER_COEFFICIENT = 0x1C,
+        NB_CONV = 0x0F,
 
         GAS_RANGE = 0x0F,
         RH_RANGE = 0x30,
