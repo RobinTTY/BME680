@@ -1,12 +1,15 @@
 ﻿// Ported from https://github.com/BoschSensortec/BME680_driver/blob/master/bme680.c
 // TODO: create example, create Readme.md
 // TODO: clarify how much API surface should exist, should user have full control or just set profiles and take measurements
+// TODO: check success, maybe add property IsLastReadSuccessful, init with default config?!
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Device.I2c;
 using System.Device.Spi;
 using System.Linq;
+using System.Threading.Tasks;
 using Iot.Units;
 
 namespace Bme680
@@ -18,6 +21,7 @@ namespace Bme680
         private SpiDevice _spiDevice;
         private CommunicationProtocol _protocol;
 
+        private readonly List<HeaterProfileConfiguration> _heaterProfiles;
         private readonly CalibrationData _calibrationData;
         private int _temperatureFine;
         private bool _initialized;
@@ -156,9 +160,11 @@ namespace Bme680
         }
 
         /// <summary>
-        /// Gets or sets the IIR filter to the given coefficient. The IIR filter affects temperature and
-        /// pressure measurements but not humidity and gas measurements. An IIR filter can suppress
-        /// disturbances (e.g. slamming of a door or wind blowing in the sensor).
+        /// Gets or sets the IIR filter to the given coefficient.
+        /// <para />
+        /// The IIR filter affects temperature and pressure measurements but not humidity and gas measurements. 
+        /// <para />
+        /// An IIR filter can suppress disturbances (e.g. slamming of a door or wind blowing in the sensor).
         /// </summary>
         public FilterCoefficient FilterCoefficient
         {
@@ -254,6 +260,7 @@ namespace Bme680
         {
             _i2cDevice = i2cDevice;
             _calibrationData = new CalibrationData();
+            _heaterProfiles = new List<HeaterProfileConfiguration>();
             _protocol = CommunicationProtocol.I2C;
         }
 
@@ -264,6 +271,7 @@ namespace Bme680
 
             _spiDevice = spiDevice;
             _calibrationData = new CalibrationData();
+            _heaterProfiles = new List<HeaterProfileConfiguration>();
             _protocol = CommunicationProtocol.Spi;
         }
 
@@ -311,6 +319,30 @@ namespace Bme680
 
         // TODO: this performs a measurement
         /// <summary>
+        /// Performs a measurement by setting the sensor to forced mode, awaits the result.
+        /// </summary>
+        /// <returns></returns>
+        public async Task PerformMeasurement()
+        {
+            var duration = GetProfileDuration(CurrentHeaterProfile);
+            SetPowerMode(PowerMode.Forced);
+
+            // TODO: ok to do here?
+            if (GasConversionIsEnabled)
+                HeaterIsEnabled = true;
+
+            Console.WriteLine("Measurement in Process: " + MeasurementInProcess);
+            Console.WriteLine("New data is available: " + NewDataIsAvailable);
+
+            // TODO: check delay here
+            // wait for the measurement to be done
+            await Task.Delay(duration);
+
+            Console.WriteLine("Measurement in Process after delay: " + MeasurementInProcess);
+            Console.WriteLine("New data is available: " + NewDataIsAvailable);
+        }
+
+        /// <summary>
         /// Sets the power mode to the given mode.
         /// </summary>
         /// <param name="powerMode"></param>
@@ -324,9 +356,6 @@ namespace Bme680
             status = (byte)(status & (byte)powerMode);
 
             Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
-
-            // TODO: check status registers if measurement was successful
-
         }
 
         /// <summary>
@@ -341,12 +370,17 @@ namespace Bme680
             return (PowerMode)status;
         }
 
-        // TODO: why is time for gas measurement always added???
+        // TODO: why is time for gas measurement always added, what happens if conversion is disabled to 477*5???
         // TODO: compare with real values (check NewDataIsAvailable for measurement time)
-        public int GetProfileDuration()
+        /// <summary>
+        /// Gets the required time in ms to perform a measurement with the given heater profile.
+        /// </summary>
+        /// <param name="profile">The heater profile.</param>
+        /// <returns></returns>
+        public int GetProfileDuration(HeaterProfile profile)
         {
             var osToMeasCycles = new byte[] { 0, 1, 2, 4, 8, 16 };
-            
+
             var measCycles = osToMeasCycles[(int)TemperatureSampling];
             measCycles += osToMeasCycles[(int)PressureSampling];
             measCycles += osToMeasCycles[(int)HumiditySampling];
@@ -358,53 +392,49 @@ namespace Bme680
             measDuration /= 1000;                   // convert to ms
             measDuration += 1;                      // wake up duration of 1ms
 
-            // TODO: mapping between HeaterProfile and HeaterProfileConfiguration
             if (GasConversionIsEnabled)
-                measDuration += CurrentHeaterProfile;
+                measDuration += GetHeaterProfileFromDevice(profile).GetHeaterDurationInMilliseconds();
 
             return measDuration;
         }
 
         /// <summary>
-        /// Sets a gas-sensor-heater profile.
+        /// Sets a gas-sensor-heater profile. Converts the target temperature and duration to internally used format.
         /// </summary>
-        /// <param name="profile">The chosen heater profile. Ranging from 0-9.</param>
+        /// <param name="profile">The selected profile to save to.</param>
+        /// <param name="targetTemperature">The target temperature in °C. Ranging from 0-400.</param>
+        /// <param name="duration">The duration in ms. Ranging from 0-4032.</param>
         /// <param name="ambientTemperature">The ambient temperature.</param>
-        /// <param name="targetTemperature">The desired heater temperature in °C. Ranging from 0 to 400.</param>
-        /// <param name="duration">The desired heating duration in ms. Ranging from 0-4032.</param>
         /// <returns></returns>
-        public void ConfigureHeaterProfile(HeaterProfile profile, double ambientTemperature, ushort targetTemperature, ushort duration)
+        public HeaterProfileConfiguration SaveHeaterProfileToDevice(HeaterProfile profile, ushort targetTemperature, ushort duration, double ambientTemperature)
         {
             // read ambient temperature for resistance calculation
-            var heaterResistance = CalculateHeaterResistance(targetTemperature, (int)ambientTemperature);
+            var heaterResistance = CalculateHeaterResistance(targetTemperature, (short)ambientTemperature);
             var heaterDuration = CalculateHeaterDuration(duration);
 
             Write8BitsToRegister((byte)((byte)Register.RES_HEAT0 + profile), heaterResistance);
             Write8BitsToRegister((byte)((byte)Register.GAS_WAIT0 + profile), heaterDuration);
+
+            return new HeaterProfileConfiguration(profile, heaterResistance, heaterDuration);
         }
 
         /// <summary>
-        /// Gets the specified gas-sensor-heater profile.
+        /// Gets the specified gas-sensor-heater configuration.
         /// </summary>
         /// <param name="profile">The chosen heater profile.</param>
-        /// <param name="ambientTemperature">The ambient temperature.</param>
         /// <returns>The configuration of the chosen set-point or null if invalid set-point was chosen.</returns>
-        public HeaterProfileConfiguration GetHeaterProfileConfiguration(HeaterProfile profile, double ambientTemperature)
+        public HeaterProfileConfiguration GetHeaterProfileFromDevice(HeaterProfile profile)
         {
             // need to be converted?!
             var heaterTemp = Read8BitsFromRegister((byte)((byte)Register.RES_HEAT0 + profile));
             var heaterDuration = Read8BitsFromRegister((byte)((byte)Register.GAS_WAIT0 + profile));
 
-            // read ambient temperature for resistance calculation
-            heaterTemp = CalculateHeaterResistance(heaterTemp, (int)ambientTemperature);
-            heaterDuration = CalculateHeaterDuration(heaterDuration);
-
-            return new HeaterProfileConfiguration(heaterTemp, heaterDuration);
+            return new HeaterProfileConfiguration(profile, heaterTemp, heaterDuration);
         }
 
         // TODO: maybe it's better to do this like dht where the values are automatically assigned to
         // TODO: corresponding properties after a reading is performed
-        // TODO: measurements in c driver is done via read_field_data, datasheet 3.3.1 states that if
+        // TODO: measurements in c driver is done via read_field_data, data sheet 3.3.1 states that if
         // filter is enabled, resolution is 16 + (osrs_t - 1) bit, e.g. 18 bit when osrs_t is set to 3
         // this is not incorporated yet!
         /// <summary>
@@ -418,7 +448,7 @@ namespace Bme680
             var t2 = Read8BitsFromRegister((byte)Register.TEMP + 2 * sizeof(byte));
 
             // Combine the two values, t2 is only 4 bit
-            var temp = (t1 << 4) + (t2 >> 4);
+            var temp = (uint)(t1 << 4) + (uint)(t2 >> 4);
 
             return CalculateTemperature(temp);
         }
@@ -438,9 +468,9 @@ namespace Bme680
             var p2 = Read8BitsFromRegister((byte)Register.PRESS + 2 * sizeof(byte));
 
             // Combine the two values, p2 is only 4 bit
-            var press = (p1 << 4) + (p2 >> 4);
+            var press = (uint)(p1 << 4) + (uint)(p2 >> 4);
 
-            // TODO: From BME280 datasheet: Output value of "24674867" represents 24674867/256 = 96386.2 hPa
+            // TODO: From BME280 data sheet: Output value of "24674867" represents 24674867/256 = 96386.2 hPa
             return CalculatePressure(press) / 256;
         }
 
@@ -460,40 +490,42 @@ namespace Bme680
             return CalculateHumidity(hum);
         }
 
-        // TODO: maybe name method differently
         /// <summary>
         /// Reads the gas resistance from the sensor.
         /// </summary>
         /// <returns>Gas resistance in Ohm.</returns>
         public double ReadGasResistance()
         {
+            if (!GasMeasurementIsValid)
+            {
+                Console.WriteLine("Gas measurement not valid!");
+                return double.NaN;
+            }
+
             // Read 10 bit gas resistance value from registers
             var g1 = Read8BitsFromRegister((byte)Register.GAS_RES);
             var g2 = Read8BitsFromRegister((byte)Register.GAS_RES + sizeof(byte));
             var gasRange = Read8BitsFromRegister((byte)Register.GAS_RANGE);
 
-            var gasResistance = (g1 << 2) + (g2 >> 6);
+            var gasResistance = (ushort)((ushort)(g1 << 2) + (byte)(g2 >> 6));
             gasRange &= (byte)Mask.GAS_RANGE;
 
             return CalculateGasResistance(gasResistance, gasRange);
         }
 
-        // TODO: check input variable type
         // TODO: Check if this summary applies
         /// <summary>
         ///  Returns the temperature. Resolution is 0.01 DegC. Output value of “5123” equals 51.23 degrees celsius.
         /// </summary>
         /// <param name="adcTemperature">The temperature value read from the device.</param>
         /// <returns>Temperature</returns>
-        private Temperature CalculateTemperature(int adcTemperature)
+        private Temperature CalculateTemperature(uint adcTemperature)
         {
             var var1 = (adcTemperature / 16384.0 - _calibrationData.ParT1 / 1024.0) * _calibrationData.ParT2;
             var var2 = adcTemperature / 131072.0 - _calibrationData.ParT1 / 8192.0;
             var2 = var2 * var2 * (_calibrationData.ParT3 * 16.0);
 
-            // TODO:
             _temperatureFine = (int)(var1 + var2);
-
             var temperature = (var1 + var2) / 5120.0;
 
             return Temperature.FromCelsius(temperature);
@@ -507,7 +539,7 @@ namespace Bme680
         /// </summary>
         /// <param name="adcPressure">The pressure value read from the device.</param>
         /// <returns>Pressure in hPa</returns>
-        private double CalculatePressure(int adcPressure)
+        private double CalculatePressure(uint adcPressure)
         {
             var var1 = _temperatureFine / 2.0 - 64000.0;
             var var2 = Math.Pow(var1, 2) * (_calibrationData.ParP6 / 131072.0);
@@ -530,7 +562,7 @@ namespace Bme680
         }
 
         // TODO: check input variable type
-        private double CalculateHumidity(int adcHumidity)
+        private double CalculateHumidity(ushort adcHumidity)
         {
             var tempComp = _temperatureFine / 5120.0;
             var var1 = adcHumidity - (_calibrationData.ParH1 * 16.0 + _calibrationData.ParH3 / 2.0 * tempComp);
@@ -549,7 +581,7 @@ namespace Bme680
         }
 
         // TODO: check input variable type
-        private double CalculateGasResistance(int adcGasRes, byte gasRange)
+        private double CalculateGasResistance(ushort adcGasRes, byte gasRange)
         {
             var k1Lookup = new[] { 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0 };
             var k2Lookup = new[] { 0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -562,10 +594,7 @@ namespace Bme680
             return gasResistance;
         }
 
-        // TODO: check who needs to call this method
-        // TODO: check input variable type
-        // cast to byte correct? direct test with C++ Code returns same results so probably fine
-        private byte CalculateHeaterResistance(int setTemp, int ambientTemp)
+        private byte CalculateHeaterResistance(ushort setTemp, short ambientTemp)
         {
             // limit maximum temperature to 400°C
             if (setTemp > 400)
@@ -581,6 +610,11 @@ namespace Bme680
             return heaterResistance;
         }
 
+
+        // The duration is interpreted as follows:
+        // Byte [7:6]: multiplication factor of 1 ,4, 16 or 64
+        // Byte [5:0] 64 timer values, 1ms step size
+        // Values are rounded down
         private byte CalculateHeaterDuration(ushort duration)
         {
             byte factor = 0;
