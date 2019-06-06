@@ -5,7 +5,6 @@
 
 using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.Device.I2c;
 using System.Device.Spi;
 using System.Linq;
@@ -350,7 +349,7 @@ namespace Bme680
 
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
             status = (byte)(status & ((byte)Mask.PWR_MODE ^ (byte)Mask.CLR));
-            status = (byte)(status & (byte)powerMode);
+            status = (byte)(status | (byte)powerMode);
 
             Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
         }

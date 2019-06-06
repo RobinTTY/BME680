@@ -15,18 +15,27 @@ namespace Bme680
             var bme680 = new Bme680(device);
 
             var debug = true;
-            while (debug)
-            {
-                Task.Delay(1000).Wait();
-            }
+            //while (debug)
+            //{
+            //    Task.Delay(1000).Wait();
+            //}
 
             bme680.InitDevice();
+            bme680.HumiditySampling = Sampling.Skipped;
+            bme680.PressureSampling = Sampling.Skipped;
+            bme680.TemperatureSampling = Sampling.X1;
+            bme680.FilterCoefficient = FilterCoefficient.C0;
+            bme680.PerformMeasurement().Wait();
+            var firstMeasurement = bme680.ReadTemperature();
+            Console.WriteLine($"First Measurement: {firstMeasurement.Celsius}°C");
 
             // 3.2.1 Quick start example (page 15)
             while (true)
             {
                 // set device settings
                 
+
+
                 bme680.HumiditySampling = Sampling.X1;
                 bme680.TemperatureSampling = Sampling.X2;
                 bme680.PressureSampling = Sampling.X16;
@@ -46,7 +55,7 @@ namespace Bme680
                 var hum = bme680.ReadHumidity();
                 var gasRes = bme680.ReadGasResistance();
 
-                Console.WriteLine($"Temperature: {temp}\nPressure: {press}\nHumidity: {hum}\nGas Resistance: {gasRes}\n");
+                Console.WriteLine($"Temperature: {temp.Celsius}°C\nPressure: {press}\nHumidity: {hum}\nGas Resistance: {gasRes}\n");
                 Task.Delay(1000).Wait();
             }
         }
