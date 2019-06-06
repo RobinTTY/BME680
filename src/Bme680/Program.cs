@@ -2,7 +2,6 @@
 using System.Device.I2c;
 using System.Device.I2c.Drivers;
 using System.Threading.Tasks;
-using Bme680;
 
 namespace Bme680
 {

@@ -21,7 +21,6 @@ namespace Bme680
         private SpiDevice _spiDevice;
         private CommunicationProtocol _protocol;
 
-        private readonly List<HeaterProfileConfiguration> _heaterProfiles;
         private readonly CalibrationData _calibrationData;
         private int _temperatureFine;
         private bool _initialized;
@@ -260,7 +259,6 @@ namespace Bme680
         {
             _i2cDevice = i2cDevice;
             _calibrationData = new CalibrationData();
-            _heaterProfiles = new List<HeaterProfileConfiguration>();
             _protocol = CommunicationProtocol.I2C;
         }
 
@@ -271,7 +269,6 @@ namespace Bme680
 
             _spiDevice = spiDevice;
             _calibrationData = new CalibrationData();
-            _heaterProfiles = new List<HeaterProfileConfiguration>();
             _protocol = CommunicationProtocol.Spi;
         }
 

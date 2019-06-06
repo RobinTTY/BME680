@@ -2,6 +2,8 @@
 {
     internal enum Mask : byte
     {
+        BIT_H1_DATA_MSK = 0x0F,
+
         PWR_MODE = 0x03,
         HEAT_OFF = 0x08,
         RUN_GAS = 0x10,

@@ -43,8 +43,10 @@
         internal void ReadFromDevice(Bme680 bme680)
         {
             // load humidity calibration data
-            ParH1 = bme680.Read16BitsFromRegister((byte)Register.PAR_H1);
-            ParH2 = bme680.Read16BitsFromRegister((byte)Register.PAR_H2);
+            ParH1 = (ushort)((bme680.Read8BitsFromRegister((byte) Register.PAR_H1_MSB) << 4) |
+                     (bme680.Read8BitsFromRegister((byte) Register.PAR_H1_LSB) & (byte)Mask.BIT_H1_DATA_MSK));
+            ParH2 = (ushort)((bme680.Read8BitsFromRegister((byte)Register.PAR_H2_MSB) << 4) |
+                             (bme680.Read8BitsFromRegister((byte)Register.PAR_H2_LSB) >> 4));
             ParH3 = (sbyte)bme680.Read8BitsFromRegister((byte)Register.PAR_H3);
             ParH4 = (sbyte)bme680.Read8BitsFromRegister((byte)Register.PAR_H4);
             ParH5 = (sbyte)bme680.Read8BitsFromRegister((byte)Register.PAR_H5);
@@ -80,7 +82,7 @@
             var rangeSwReg = bme680.Read8BitsFromRegister((byte)Register.RANGE_SW_ERR);
             RangeSwErr = (sbyte)((rangeSwReg & (byte)Mask.RS_ERROR) >> 4);
 
-            ResHeatVal = (sbyte) bme680.Read8BitsFromRegister((byte) Register.RES_HEAT_VAL);
+            ResHeatVal = (sbyte)bme680.Read8BitsFromRegister((byte)Register.RES_HEAT_VAL);
         }
     }
 }
