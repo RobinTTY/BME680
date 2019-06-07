@@ -1,6 +1,4 @@
 ﻿// Ported from https://github.com/BoschSensortec/BME680_driver/blob/master/bme680.c
-// TODO: create example, create Readme.md
-// TODO: clarify how much API surface should exist, should user have full control or just set profiles and take measurements
 
 using System;
 using System.Buffers.Binary;
@@ -24,6 +22,9 @@ namespace Bme680
 
         // The ChipId of the BME680
         private const byte DeviceId = 0x61;
+
+        // The I2c address of the Bme680 is either 0x76 (primary) or 0x77 (secondary)
+        public const byte DefaultI2cAddress = 0x76;
 
         /// <summary>
         /// Gets the last measured temperature data from the corresponding register.
@@ -282,9 +283,9 @@ namespace Bme680
             // not fully implemented yet, translation of memory addresses and memory page access missing
             throw new NotImplementedException();
 
-            _spiDevice = spiDevice;
-            _calibrationData = new CalibrationData();
-            _protocol = CommunicationProtocol.Spi;
+            //_spiDevice = spiDevice;
+            //_calibrationData = new CalibrationData();
+            //_protocol = CommunicationProtocol.Spi;
         }
 
         public enum CommunicationProtocol
@@ -328,7 +329,6 @@ namespace Bme680
         /// </summary>
         public void TriggerSoftReset()
         {
-            // TODO: do we need a delay after resetting? test read directly after reset
             Write8BitsToRegister((byte)Register.RESET, 0xB6);
             _initialized = false;
         }
@@ -376,8 +376,6 @@ namespace Bme680
             return (PowerMode)status;
         }
 
-        // TODO: why is time for gas measurement always added, what happens if conversion is disabled to 477*5???
-        // TODO: compare with real values (check NewDataIsAvailable for measurement time)
         /// <summary>
         /// Gets the required time in ms to perform a measurement with the given heater profile.
         /// The precision of this duration is within 1ms of the actual measurement time
@@ -387,7 +385,7 @@ namespace Bme680
         public int GetProfileDuration(HeaterProfile profile)
         {
             var osToMeasCycles = new byte[] { 0, 1, 2, 4, 8, 16 };
-            var osToSwitchCount = new byte[] {0, 1, 1, 1, 1, 1};
+            var osToSwitchCount = new byte[] { 0, 1, 1, 1, 1, 1 };
 
             var measCycles = osToMeasCycles[(int)TemperatureSampling];
             measCycles += osToMeasCycles[(int)PressureSampling];
@@ -396,7 +394,7 @@ namespace Bme680
             var switchCount = osToSwitchCount[(int)TemperatureSampling];
             switchCount += osToSwitchCount[(int)PressureSampling];
             switchCount += osToSwitchCount[(int)HumiditySampling];
-            
+
             double measDuration = measCycles * 1963;
             measDuration += 477 * switchCount;      // TPH switching duration
 

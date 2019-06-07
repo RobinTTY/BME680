@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Device.I2c;
 using System.Device.I2c.Drivers;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace Bme680
@@ -10,7 +9,7 @@ namespace Bme680
     {
         static async Task Main(string[] args)
         {
-            var settings = new I2cConnectionSettings(1, 0x76);
+            var settings = new I2cConnectionSettings(1, Bme680.DefaultI2cAddress);
             var device = new UnixI2cDevice(settings);
             var bme680 = new Bme680(device);
 
