@@ -12,9 +12,9 @@
         public sbyte ParH7 { get; private set; }
 
         // gas calibration registers
-        public sbyte ParGh1 { get; set; }
-        public short ParGh2 { get; set; }
-        public sbyte ParGh3 { get; set; }
+        public sbyte ParGh1 { get; private set; }
+        public short ParGh2 { get; private set; }
+        public sbyte ParGh3 { get; private set; }
 
         // temperature calibration registers
         public ushort ParT1 { get; private set; }

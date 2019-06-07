@@ -1,13 +1,11 @@
 ﻿// Ported from https://github.com/BoschSensortec/BME680_driver/blob/master/bme680.c
 // TODO: create example, create Readme.md
 // TODO: clarify how much API surface should exist, should user have full control or just set profiles and take measurements
-// TODO: check success, maybe add property IsLastReadSuccessful, init with default config?!
 
 using System;
 using System.Buffers.Binary;
 using System.Device.I2c;
 using System.Device.Spi;
-using System.Linq;
 using System.Threading.Tasks;
 using Iot.Units;
 
@@ -18,16 +16,34 @@ namespace Bme680
 
         private I2cDevice _i2cDevice;
         private SpiDevice _spiDevice;
-        private CommunicationProtocol _protocol;
+        private readonly CommunicationProtocol _protocol;
 
         private readonly CalibrationData _calibrationData;
         private int _temperatureFine;
         private bool _initialized;
 
-        // The BME680 uses two addresses: 0x76 (primary) and 0x77 (secondary)
-        private const byte DefaultI2cAddress = 0x76;
         // The ChipId of the BME680
         private const byte DeviceId = 0x61;
+
+        /// <summary>
+        /// Gets the last measured temperature data from the corresponding register.
+        /// </summary>
+        public Temperature Temperature => ReadTemperature();
+
+        /// <summary>
+        /// Gets the last measured relative humidity in percent from the corresponding register.
+        /// </summary>
+        public double Humidity => ReadHumidity();
+
+        /// <summary>
+        /// Gets the last measured pressure in Pa from the corresponding register.
+        /// </summary>
+        public double Pressure => ReadPressure();
+
+        /// <summary>
+        /// Gets the last measured gas resistance in Ohm from the corresponding register.
+        /// </summary>
+        public double GasResistance => ReadGasResistance();
 
         /// <summary>
         /// Gets or sets whether the heater is enabled.
@@ -277,7 +293,6 @@ namespace Bme680
             Spi
         }
 
-        // TODO: make private, call before measurement is performed
         /// <summary>
         /// Initializes the BMP680 sensor, making it ready for use.
         /// </summary>
@@ -291,16 +306,21 @@ namespace Bme680
             _initialized = true;
             _calibrationData.ReadFromDevice(this);
 
-            // TODO: remove if correct
-            Console.WriteLine("Configuration values:");
-            var props = _calibrationData.GetType().GetProperties();
-            props.ToList().ForEach(prop =>
-            {
-                var propName = prop.Name;
-                var propValue = prop.GetValue(_calibrationData);
-                Console.WriteLine($"{propName}: {propValue}");
-            });
-            // TODO: remove if correct
+            // perform a single temperature reading to set the temperature fine and set the default configuration
+            TemperatureSampling = Sampling.X1;
+            PressureSampling = Sampling.Skipped;
+            HumiditySampling = Sampling.Skipped;
+            FilterCoefficient = FilterCoefficient.C0;
+            GasConversionIsEnabled = false;
+
+            PerformMeasurement().Wait();
+
+            // turn on humidity, pressure and gas conversion for future measurements
+            HumiditySampling = Sampling.X1;
+            PressureSampling = Sampling.X1;
+            GasConversionIsEnabled = true;
+            SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, Temperature.Celsius);
+            CurrentHeaterProfile = HeaterProfile.Profile1;
         }
 
         /// <summary>
@@ -313,7 +333,6 @@ namespace Bme680
             _initialized = false;
         }
 
-        // TODO: this performs a measurement
         /// <summary>
         /// Performs a measurement by setting the sensor to forced mode, awaits the result.
         /// </summary>
@@ -323,19 +342,10 @@ namespace Bme680
             var duration = GetProfileDuration(CurrentHeaterProfile);
             SetPowerMode(PowerMode.Forced);
 
-            // TODO: ok to do here?
             if (GasConversionIsEnabled)
                 HeaterIsEnabled = true;
 
-            Console.WriteLine("Measurement in Process: " + MeasurementInProcess);
-            Console.WriteLine("New data is available: " + NewDataIsAvailable);
-
-            // TODO: check delay here
-            // wait for the measurement to be done
             await Task.Delay(duration);
-
-            Console.WriteLine("Measurement in Process after delay: " + MeasurementInProcess);
-            Console.WriteLine("New data is available: " + NewDataIsAvailable);
         }
 
         /// <summary>
@@ -370,28 +380,36 @@ namespace Bme680
         // TODO: compare with real values (check NewDataIsAvailable for measurement time)
         /// <summary>
         /// Gets the required time in ms to perform a measurement with the given heater profile.
+        /// The precision of this duration is within 1ms of the actual measurement time
         /// </summary>
         /// <param name="profile">The heater profile.</param>
         /// <returns></returns>
         public int GetProfileDuration(HeaterProfile profile)
         {
             var osToMeasCycles = new byte[] { 0, 1, 2, 4, 8, 16 };
+            var osToSwitchCount = new byte[] {0, 1, 1, 1, 1, 1};
 
             var measCycles = osToMeasCycles[(int)TemperatureSampling];
             measCycles += osToMeasCycles[(int)PressureSampling];
             measCycles += osToMeasCycles[(int)HumiditySampling];
 
-            var measDuration = measCycles * 1963;
-            measDuration += 477 * 4;                // TPH switching duration
-            measDuration += 477 * 5;                // Gas measurement duration
-            measDuration += 500;                    // get it to the closes whole number
-            measDuration /= 1000;                   // convert to ms
+            var switchCount = osToSwitchCount[(int)TemperatureSampling];
+            switchCount += osToSwitchCount[(int)PressureSampling];
+            switchCount += osToSwitchCount[(int)HumiditySampling];
+            
+            double measDuration = measCycles * 1963;
+            measDuration += 477 * switchCount;      // TPH switching duration
+
+            if (GasConversionIsEnabled)
+                measDuration += 477 * 5;            // Gas measurement duration
+            measDuration += 500;                    // get it to the closest whole number
+            measDuration /= 1000.0;                 // convert to ms
             measDuration += 1;                      // wake up duration of 1ms
 
             if (GasConversionIsEnabled)
                 measDuration += GetHeaterProfileFromDevice(profile).GetHeaterDurationInMilliseconds();
 
-            return measDuration;
+            return (int)Math.Ceiling(measDuration);
         }
 
         /// <summary>
@@ -428,17 +446,15 @@ namespace Bme680
             return new HeaterProfileConfiguration(profile, heaterTemp, heaterDuration);
         }
 
-        // TODO: maybe it's better to do this like dht where the values are automatically assigned to
-        // TODO: corresponding properties after a reading is performed
-        // TODO: measurements in c driver is done via read_field_data, data sheet 3.3.1 states that if
-        // filter is enabled, resolution is 16 + (osrs_t - 1) bit, e.g. 18 bit when osrs_t is set to 3
-        // this is not incorporated yet!
         /// <summary>
         /// Reads the temperature from the sensor.
         /// </summary>
         /// <returns>Temperature</returns>
-        public Temperature ReadTemperature()
+        private Temperature ReadTemperature()
         {
+            if (TemperatureSampling == Sampling.Skipped)
+                return Temperature.FromCelsius(double.NaN);
+
             // Read 20 bit uncompensated temperature value from registers
             var t1 = Read16BitsFromRegister((byte)Register.TEMP, Endianness.BigEndian);
             var t2 = Read8BitsFromRegister((byte)Register.TEMP + 2 * sizeof(byte));
@@ -453,11 +469,13 @@ namespace Bme680
         ///  Reads the pressure from the sensor.
         /// </summary>
         /// <returns>Atmospheric pressure in Pa.</returns>
-        public double ReadPressure()
+        private double ReadPressure()
         {
-            // TODO: probably best to do an initial reading on Init to define _temperatureFine
             if (_temperatureFine == int.MinValue)
-                return int.MinValue;
+                return double.NaN;
+
+            if (PressureSampling == Sampling.Skipped)
+                return double.NaN;
 
             // Read 20 bit uncompensated pressure value from registers
             var p1 = Read16BitsFromRegister((byte)Register.PRESS, Endianness.BigEndian);
@@ -466,19 +484,20 @@ namespace Bme680
             // Combine the two values, p2 is only 4 bit
             var press = (uint)(p1 << 4) + (uint)(p2 >> 4);
 
-            // TODO: From BME280 data sheet: Output value of "24674867" represents 24674867/256 = 96386.2 hPa
-            return CalculatePressure(press) / 256;
+            return CalculatePressure(press);
         }
 
         /// <summary>
         /// Reads the humidity from the sensor.
         /// </summary>
         /// <returns>Humidity in percent.</returns>
-        public double ReadHumidity()
+        private double ReadHumidity()
         {
-            // TODO: probably best to do an initial reading on Init to define _temperatureFine
             if (_temperatureFine == int.MinValue)
                 return int.MinValue;
+
+            if (HumiditySampling == Sampling.Skipped)
+                return double.NaN;
 
             // Read 16 bit uncompensated humidity value from registers
             var hum = Read16BitsFromRegister((byte)Register.HUM, Endianness.BigEndian);
@@ -490,11 +509,10 @@ namespace Bme680
         /// Reads the gas resistance from the sensor.
         /// </summary>
         /// <returns>Gas resistance in Ohm.</returns>
-        public double ReadGasResistance()
+        private double ReadGasResistance()
         {
             if (!GasMeasurementIsValid)
             {
-                Console.WriteLine("Gas measurement not valid!");
                 return double.NaN;
             }
 
@@ -509,9 +527,8 @@ namespace Bme680
             return CalculateGasResistance(gasResistance, gasRange);
         }
 
-        // TODO: Check if this summary applies
         /// <summary>
-        ///  Returns the temperature. Resolution is 0.01 DegC. Output value of “5123” equals 51.23 degrees celsius.
+        ///  Calculates the temperature in °C.
         /// </summary>
         /// <param name="adcTemperature">The temperature value read from the device.</param>
         /// <returns>Temperature</returns>
@@ -527,14 +544,11 @@ namespace Bme680
             return Temperature.FromCelsius(temperature);
         }
 
-        // TODO: check input variable type
-        // TODO: Check if this summary applies
         /// <summary>
-        ///  Returns the pressure in Pa, in Q24.8 format (24 integer bits and 8 fractional bits).
-        ///  Output value of “24674867” represents 24674867/256 = 96386.2 Pa = 963.862 hPa
+        ///  Returns the pressure in Pa.
         /// </summary>
         /// <param name="adcPressure">The pressure value read from the device.</param>
-        /// <returns>Pressure in hPa</returns>
+        /// <returns>Pressure in Pa</returns>
         private double CalculatePressure(uint adcPressure)
         {
             var var1 = _temperatureFine / 2.0 - 64000.0;
@@ -557,7 +571,6 @@ namespace Bme680
             return pressure;
         }
 
-        // TODO: check input variable type
         private double CalculateHumidity(ushort adcHumidity)
         {
             var tempComp = _temperatureFine / 5120.0;
@@ -576,7 +589,6 @@ namespace Bme680
             return humidity;
         }
 
-        // TODO: check input variable type
         private double CalculateGasResistance(ushort adcGasRes, byte gasRange)
         {
             var k1Lookup = new[] { 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0 };
