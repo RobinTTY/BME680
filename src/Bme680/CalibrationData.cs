@@ -1,4 +1,4 @@
-﻿namespace Bme680
+﻿namespace Bme680Driver
 {
     internal class CalibrationData
     {

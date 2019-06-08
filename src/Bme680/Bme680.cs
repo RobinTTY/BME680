@@ -7,7 +7,7 @@ using System.Device.Spi;
 using System.Threading.Tasks;
 using Iot.Units;
 
-namespace Bme680
+namespace Bme680Driver
 {
     public class Bme680 : IDisposable
     {

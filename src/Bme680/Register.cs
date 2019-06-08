@@ -1,4 +1,4 @@
-﻿namespace Bme680
+﻿namespace Bme680Driver
 {
     // Adresses differ for SPI implementation but can be translated using mask, see bme680_get_regs in
     // the Bosch C driver: https://github.com/BoschSensortec/BME680_driver/blob/master/bme680.c

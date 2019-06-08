@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Bme680
+namespace Bme680Driver
 {
     /// <summary>
     /// The heater profile configuration saved on the device.
