@@ -5,7 +5,6 @@ using System.Buffers.Binary;
 using System.Device.I2c;
 using System.Device.Spi;
 using System.Threading.Tasks;
-using Iot.Units;
 
 namespace Bme680Driver
 {
@@ -29,7 +28,7 @@ namespace Bme680Driver
         /// <summary>
         /// Gets the last measured temperature data from the corresponding register.
         /// </summary>
-        public Temperature Temperature => ReadTemperature();
+        public double Temperature => ReadTemperature();
 
         /// <summary>
         /// Gets the last measured relative humidity in percent from the corresponding register.
@@ -320,7 +319,7 @@ namespace Bme680Driver
             HumiditySampling = Sampling.X1;
             PressureSampling = Sampling.X1;
             GasConversionIsEnabled = true;
-            SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, Temperature.Celsius);
+            SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, Temperature);
             CurrentHeaterProfile = HeaterProfile.Profile1;
         }
 
@@ -448,10 +447,10 @@ namespace Bme680Driver
         /// Reads the temperature from the sensor.
         /// </summary>
         /// <returns>Temperature</returns>
-        private Temperature ReadTemperature()
+        private double ReadTemperature()
         {
             if (TemperatureSampling == Sampling.Skipped)
-                return Temperature.FromCelsius(double.NaN);
+                return double.NaN;
 
             // Read 20 bit uncompensated temperature value from registers
             var t1 = Read16BitsFromRegister((byte)Register.TEMP, Endianness.BigEndian);
@@ -530,7 +529,7 @@ namespace Bme680Driver
         /// </summary>
         /// <param name="adcTemperature">The temperature value read from the device.</param>
         /// <returns>Temperature</returns>
-        private Temperature CalculateTemperature(uint adcTemperature)
+        private double CalculateTemperature(uint adcTemperature)
         {
             var var1 = (adcTemperature / 16384.0 - _calibrationData.ParT1 / 1024.0) * _calibrationData.ParT2;
             var var2 = adcTemperature / 131072.0 - _calibrationData.ParT1 / 8192.0;
@@ -539,7 +538,7 @@ namespace Bme680Driver
             _temperatureFine = (int)(var1 + var2);
             var temperature = (var1 + var2) / 5120.0;
 
-            return Temperature.FromCelsius(temperature);
+            return temperature;
         }
 
         /// <summary>
