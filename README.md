@@ -39,7 +39,7 @@ class Program
                 var hum = bme680.Humidity;
                 var gasRes = bme680.GasResistance;
 
-                Console.WriteLine($"Temperature: {temp.Celsius}°C\nPressure: {press}\nHumidity: {hum}\nGas Resistance: {gasRes}\n");
+                Console.WriteLine($"Temperature: {temp}°C\nPressure: {press}\nHumidity: {hum}\nGas Resistance: {gasRes}\n");
                 Task.Delay(1000).Wait();
             }
         }
@@ -105,7 +105,7 @@ class Program
                 // is taken into account when the heater profile is set
                 bme680.SaveHeaterProfileToDevice(HeaterProfile.Profile3, 330, 120, temp);
 
-                Console.WriteLine($"Temperature: {temp.Celsius}°C\nPressure: {press}\nHumidity: {hum}\nGas Resistance: {gasRes}\n");
+                Console.WriteLine($"Temperature: {temp}°C\nPressure: {press}\nHumidity: {hum}\nGas Resistance: {gasRes}\n");
                 Task.Delay(1000).Wait();
             }
         }
