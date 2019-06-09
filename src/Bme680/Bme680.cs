@@ -26,17 +26,17 @@ namespace Bme680Driver
         public const byte DefaultI2cAddress = 0x76;
 
         /// <summary>
-        /// Gets the last measured temperature data from the corresponding register.
+        /// Temperature in degrees Celsius.
         /// </summary>
         public double Temperature => ReadTemperature();
 
         /// <summary>
-        /// Gets the last measured relative humidity in percent from the corresponding register.
+        /// Relative humidity.
         /// </summary>
         public double Humidity => ReadHumidity();
 
         /// <summary>
-        /// Gets the last measured pressure in Pa from the corresponding register.
+        /// Pressure in Pascal.
         /// </summary>
         public double Pressure => ReadPressure();
 
@@ -446,7 +446,7 @@ namespace Bme680Driver
         /// <summary>
         /// Reads the temperature from the sensor.
         /// </summary>
-        /// <returns>Temperature</returns>
+        /// <returns>Temperature in degrees Celsius</returns>
         private double ReadTemperature()
         {
             if (TemperatureSampling == Sampling.Skipped)
