@@ -4,6 +4,16 @@
         <name>Bme680Driver</name>
     </assembly>
     <members>
+        <member name="T:Bme680Driver.Bme680">
+            <summary>
+            Temperature, humidity, pressure and gas resistance sensor Bme680.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Bme680.DefaultI2cAddress">
+            <summary>
+            The I2c address of the Bme680 is either 0x76 (primary) or 0x77 (secondary)
+            </summary>
+        </member>
         <member name="P:Bme680Driver.Bme680.Temperature">
             <summary>
             Temperature in degrees Celsius.
@@ -88,6 +98,12 @@
             Gets or sets the pressure sampling.
             </summary>
         </member>
+        <member name="M:Bme680Driver.Bme680.#ctor(System.Device.I2c.I2cDevice)">
+            <summary>
+            Temperature, humidity, pressure and gas resistance sensor Bme680.
+            </summary>
+            <param name="i2cDevice">The used I2c communication device.</param>
+        </member>
         <member name="M:Bme680Driver.Bme680.InitDevice">
             <summary>
             Initializes the BMP680 sensor, making it ready for use.
@@ -119,7 +135,7 @@
         <member name="M:Bme680Driver.Bme680.GetProfileDuration(Bme680Driver.HeaterProfile)">
             <summary>
             Gets the required time in ms to perform a measurement with the given heater profile.
-            The precision of this duration is within 1ms of the actual measurement time
+            The precision of this duration is within 1ms of the actual measurement time.
             </summary>
             <param name="profile">The heater profile.</param>
             <returns></returns>
@@ -145,7 +161,7 @@
             <summary>
             Reads the temperature from the sensor.
             </summary>
-            <returns>Temperature in degrees Celsius</returns>
+            <returns>Temperature in degrees Celsius.</returns>
         </member>
         <member name="M:Bme680Driver.Bme680.ReadPressure">
             <summary>
@@ -178,6 +194,16 @@
             </summary>
             <param name="adcPressure">The pressure value read from the device.</param>
             <returns>Pressure in Pa</returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.Dispose">
+            <summary>
+            Disposes the Bme680 resources.
+            </summary>
+        </member>
+        <member name="T:Bme680Driver.FilterCoefficient">
+            <summary>
+            IIR filter coefficient.
+            </summary>
         </member>
         <member name="F:Bme680Driver.FilterCoefficient.C0">
             <summary>
@@ -219,6 +245,61 @@
             Filter coefficient of 127
             </summary>
         </member>
+        <member name="T:Bme680Driver.HeaterProfile">
+            <summary>
+            10 addressable heater profiles saved on the Bme680.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile1">
+            <summary>
+            Heating Profile 1.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile2">
+            <summary>
+            Heating Profile 2.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile3">
+            <summary>
+            Heating Profile 3.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile4">
+            <summary>
+            Heating Profile 4.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile5">
+            <summary>
+            Heating Profile 5.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile6">
+            <summary>
+            Heating Profile 6.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile7">
+            <summary>
+            Heating Profile 7.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile8">
+            <summary>
+            Heating Profile 8.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile9">
+            <summary>
+            Heating Profile 9.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.HeaterProfile.Profile10">
+            <summary>
+            Heating Profile 10.
+            </summary>
+        </member>
         <member name="T:Bme680Driver.HeaterProfileConfiguration">
             <summary>
             The heater profile configuration saved on the device.
@@ -239,6 +320,15 @@
             The heater duration in the internally used format.
             </summary>
         </member>
+        <member name="M:Bme680Driver.HeaterProfileConfiguration.#ctor(Bme680Driver.HeaterProfile,System.UInt16,System.Byte)">
+            <summary>
+            
+            </summary>
+            <param name="profile">The used heater profile.</param>
+            <param name="heaterResistance">The heater resistance in Ohm.</param>
+            <param name="heaterDuration">The heating duration in ms.</param>
+            <exception cref="T:System.ArgumentOutOfRangeException"></exception>
+        </member>
         <member name="M:Bme680Driver.HeaterProfileConfiguration.GetHeaterDurationInMilliseconds">
             <summary>
             Gets the configured heater duration in ms.
@@ -258,6 +348,11 @@
         <member name="F:Bme680Driver.PowerMode.Forced">
             <summary>
             Device goes to sleep mode after one measurement
+            </summary>
+        </member>
+        <member name="T:Bme680Driver.Sampling">
+            <summary>
+            Sampling rate for measurements.
             </summary>
         </member>
         <member name="F:Bme680Driver.Sampling.Skipped">

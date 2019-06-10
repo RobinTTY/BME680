@@ -1,5 +1,8 @@
 ﻿namespace Bme680Driver
 {
+    /// <summary>
+    /// Sampling rate for measurements.
+    /// </summary>
     public enum Sampling : byte
     {
         /// <summary>

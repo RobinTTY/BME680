@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Bme680Driver
 {
+    /// <summary>
+    /// Temperature, humidity, pressure and gas resistance sensor Bme680.
+    /// </summary>
     public class Bme680 : IDisposable
     {
 
@@ -22,7 +25,9 @@ namespace Bme680Driver
         // The ChipId of the BME680
         private const byte DeviceId = 0x61;
 
-        // The I2c address of the Bme680 is either 0x76 (primary) or 0x77 (secondary)
+        /// <summary>
+        /// The I2c address of the Bme680 is either 0x76 (primary) or 0x77 (secondary)
+        /// </summary>
         public const byte DefaultI2cAddress = 0x76;
 
         /// <summary>
@@ -270,6 +275,10 @@ namespace Bme680Driver
             return (Sampling)value;
         }
 
+        /// <summary>
+        /// Temperature, humidity, pressure and gas resistance sensor Bme680.
+        /// </summary>
+        /// <param name="i2cDevice">The used I2c communication device.</param>
         public Bme680(I2cDevice i2cDevice)
         {
             _i2cDevice = i2cDevice;
@@ -287,7 +296,7 @@ namespace Bme680Driver
             //_protocol = CommunicationProtocol.Spi;
         }
 
-        public enum CommunicationProtocol
+        private enum CommunicationProtocol
         {
             I2C,
             Spi
@@ -377,7 +386,7 @@ namespace Bme680Driver
 
         /// <summary>
         /// Gets the required time in ms to perform a measurement with the given heater profile.
-        /// The precision of this duration is within 1ms of the actual measurement time
+        /// The precision of this duration is within 1ms of the actual measurement time.
         /// </summary>
         /// <param name="profile">The heater profile.</param>
         /// <returns></returns>
@@ -446,7 +455,7 @@ namespace Bme680Driver
         /// <summary>
         /// Reads the temperature from the sensor.
         /// </summary>
-        /// <returns>Temperature in degrees Celsius</returns>
+        /// <returns>Temperature in degrees Celsius.</returns>
         private double ReadTemperature()
         {
             if (TemperatureSampling == Sampling.Skipped)
@@ -549,10 +558,10 @@ namespace Bme680Driver
         private double CalculatePressure(uint adcPressure)
         {
             var var1 = _temperatureFine / 2.0 - 64000.0;
-            var var2 = Math.Pow(var1, 2) * (_calibrationData.ParP6 / 131072.0);
+            var var2 = var1 * var1 * (_calibrationData.ParP6 / 131072.0);
             var2 += var1 * _calibrationData.ParP5 * 2.0;
             var2 = var2 / 4.0 + _calibrationData.ParP4 * 65536.0;
-            var1 = (_calibrationData.ParP3 * Math.Pow(var1, 2) / 16384.0 + _calibrationData.ParP2 * var1) / 524288.0;
+            var1 = (_calibrationData.ParP3 * var1 * var1 / 16384.0 + _calibrationData.ParP2 * var1) / 524288.0;
             var1 = (1.0 + var1 / 32768.0) * _calibrationData.ParP1;
             var pressure = 1048576.0 - adcPressure;
 
@@ -560,9 +569,9 @@ namespace Bme680Driver
                 return 0;
 
             pressure = (pressure - var2 / 4096.0) * 6250.0 / var1;
-            var1 = _calibrationData.ParP9 * Math.Pow(pressure, 2) / 2147483648.0;
+            var1 = _calibrationData.ParP9 * pressure * pressure / 2147483648.0;
             var2 = pressure * (_calibrationData.ParP8 / 32768.0);
-            var var3 = Math.Pow(pressure / 256.0, 3) * (_calibrationData.ParP10 / 131072.0);
+            var var3 = (pressure / 256.0) * (pressure / 256.0) * (pressure / 256.0) * (_calibrationData.ParP10 / 131072.0);
             pressure += (var1 + var2 + var3 + _calibrationData.ParP7 * 128.0) / 16.0;
 
             return pressure;
@@ -572,7 +581,7 @@ namespace Bme680Driver
         {
             var tempComp = _temperatureFine / 5120.0;
             var var1 = adcHumidity - (_calibrationData.ParH1 * 16.0 + _calibrationData.ParH3 / 2.0 * tempComp);
-            var var2 = var1 * (float)(_calibrationData.ParH2 / 262144.0 * (1.0 + _calibrationData.ParH4 / 16384.0 * tempComp + _calibrationData.ParH5 / 1048576.0 * Math.Pow(tempComp, 2)));
+            var var2 = var1 * (_calibrationData.ParH2 / 262144.0 * (1.0 + _calibrationData.ParH4 / 16384.0 * tempComp + _calibrationData.ParH5 / 1048576.0 * (tempComp * tempComp)));
             var var3 = _calibrationData.ParH6 / 16384.0;
             var var4 = _calibrationData.ParH7 / 2097152.0;
             var humidity = var2 + (var3 + var4 * tempComp) * var2 * var2;
@@ -618,7 +627,7 @@ namespace Bme680Driver
 
         // The duration is interpreted as follows:
         // Byte [7:6]: multiplication factor of 1 ,4, 16 or 64
-        // Byte [5:0] 64 timer values, 1ms step size
+        // Byte [5:0]: 64 timer values, 1ms step size
         // Values are rounded down
         private byte CalculateHeaterDuration(ushort duration)
         {
@@ -717,6 +726,9 @@ namespace Bme680Driver
             BigEndian
         }
 
+        /// <summary>
+        /// Disposes the Bme680 resources.
+        /// </summary>
         public void Dispose()
         {
             if (_i2cDevice != null)

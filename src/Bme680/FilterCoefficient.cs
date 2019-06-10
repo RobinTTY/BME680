@@ -1,5 +1,8 @@
 ﻿namespace Bme680Driver
 {
+    /// <summary>
+    /// IIR filter coefficient.
+    /// </summary>
     public enum FilterCoefficient : byte
     {
         /// <summary>
