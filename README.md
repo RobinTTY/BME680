@@ -10,7 +10,7 @@ This library depends on __System.Device.Gpio__ and __Iot.Units__ namespaces for 
 
 ## Example on how to use this library
 
-The easiest way to use this library is by getting it from nuget: https://www.nuget.org/packages/Bme680Driver/
+The easiest way to use this library is by getting it from nuget: https://www.nuget.org/packages/Bme680Driver/  
 You can also build it and reference it as dependency in your project or copy all the files to your project. 
 
 You can either use the default settings of the sensor which will perform a measurement of temperature, humidity, pressure and gas (volatile organic compounds) or change those settings to suit your use case.
