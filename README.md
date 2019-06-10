@@ -4,13 +4,12 @@ C# driver for the Bosch BME680 temperature/humidity/pressure/air quality sensor.
 
 The datasheet can be found [here](https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BME680-DS001.pdf).
 
-## Dependencies
-
-This library depends on __System.Device.Gpio__ and __Iot.Units__ namespaces for communication over I²C and some helpful unit wrappers. To get these libraries you will need to add https://dotnetfeed.blob.core.windows.net/dotnet-iot/index.json to your nuget sources since they are currently in prerelease status.
-
 ## Example on how to use this library
 
-The process of using this library is straight forward, just reference it as dependency in your project or copy all the files to your project. You can either use the default settings of the sensor which will perform a measurement of temperature, humidity, pressure and gas (volatile organic compounds) or change those settings to suit your use case.
+The easiest way to use this library is by getting it from nuget: https://www.nuget.org/packages/Bme680Driver/  
+You can also build it and reference it as dependency in your project or copy all the files to your project. 
+
+You can either use the default settings of the sensor which will perform a measurement of temperature, humidity, pressure and gas (volatile organic compounds) or change those settings to suit your use case.
 
 To use the default settings you could do something like this:
 
