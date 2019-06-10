@@ -1,0 +1,294 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Bme680Driver</name>
+    </assembly>
+    <members>
+        <member name="P:Bme680Driver.Bme680.Temperature">
+            <summary>
+            Temperature in degrees Celsius.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.Humidity">
+            <summary>
+            Relative humidity.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.Pressure">
+            <summary>
+            Pressure in Pascal.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.GasResistance">
+            <summary>
+            Gets the last measured gas resistance in Ohm from the corresponding register.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.HeaterIsEnabled">
+            <summary>
+            Gets or sets whether the heater is enabled.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.GasConversionIsEnabled">
+            <summary>
+            Gets or sets whether gas conversions are enabled.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.NewDataIsAvailable">
+            <summary>
+            Indicates whether new data is available.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.GasMeasurementInProcess">
+            <summary>
+            Indicates whether a gas measurement is in process.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.MeasurementInProcess">
+            <summary>
+            Indicates whether a measurement is in process.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.GasMeasurementIsValid">
+            <summary>
+            Indicates whether a real gas conversion was performed (i.e. not a dummy one).
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.HeaterIsStable">
+            <summary>
+            Indicates whether the target heater temperature was reached.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.CurrentHeaterProfile">
+            <summary>
+            Gets or sets the heater profile to be used for the next measurement.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.FilterCoefficient">
+            <summary>
+            Gets or sets the IIR filter to the given coefficient.
+            <para />
+            The IIR filter affects temperature and pressure measurements but not humidity and gas measurements. 
+            <para />
+            An IIR filter can suppress disturbances (e.g. slamming of a door or wind blowing in the sensor).
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.TemperatureSampling">
+            <summary>
+            Gets or sets the temperature sampling.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.HumiditySampling">
+            <summary>
+            Gets or sets the humidity sampling.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.Bme680.PressureSampling">
+            <summary>
+            Gets or sets the pressure sampling.
+            </summary>
+        </member>
+        <member name="M:Bme680Driver.Bme680.InitDevice">
+            <summary>
+            Initializes the BMP680 sensor, making it ready for use.
+            </summary>
+        </member>
+        <member name="M:Bme680Driver.Bme680.TriggerSoftReset">
+            <summary>
+            Triggers a soft reset on the device which has the same effect as power-on reset.
+            </summary>
+        </member>
+        <member name="M:Bme680Driver.Bme680.PerformMeasurement">
+            <summary>
+            Performs a measurement by setting the sensor to forced mode, awaits the result.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.SetPowerMode(Bme680Driver.PowerMode)">
+            <summary>
+            Sets the power mode to the given mode.
+            </summary>
+            <param name="powerMode"></param>
+        </member>
+        <member name="M:Bme680Driver.Bme680.ReadPowerMode">
+            <summary>
+            Reads the current power mode the device is running in.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.GetProfileDuration(Bme680Driver.HeaterProfile)">
+            <summary>
+            Gets the required time in ms to perform a measurement with the given heater profile.
+            The precision of this duration is within 1ms of the actual measurement time
+            </summary>
+            <param name="profile">The heater profile.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.SaveHeaterProfileToDevice(Bme680Driver.HeaterProfile,System.UInt16,System.UInt16,System.Double)">
+            <summary>
+            Sets a gas-sensor-heater profile. Converts the target temperature and duration to internally used format.
+            </summary>
+            <param name="profile">The selected profile to save to.</param>
+            <param name="targetTemperature">The target temperature in °C. Ranging from 0-400.</param>
+            <param name="duration">The duration in ms. Ranging from 0-4032.</param>
+            <param name="ambientTemperature">The ambient temperature.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.GetHeaterProfileFromDevice(Bme680Driver.HeaterProfile)">
+            <summary>
+            Gets the specified gas-sensor-heater configuration.
+            </summary>
+            <param name="profile">The chosen heater profile.</param>
+            <returns>The configuration of the chosen set-point or null if invalid set-point was chosen.</returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.ReadTemperature">
+            <summary>
+            Reads the temperature from the sensor.
+            </summary>
+            <returns>Temperature in degrees Celsius</returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.ReadPressure">
+            <summary>
+             Reads the pressure from the sensor.
+            </summary>
+            <returns>Atmospheric pressure in Pa.</returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.ReadHumidity">
+            <summary>
+            Reads the humidity from the sensor.
+            </summary>
+            <returns>Humidity in percent.</returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.ReadGasResistance">
+            <summary>
+            Reads the gas resistance from the sensor.
+            </summary>
+            <returns>Gas resistance in Ohm.</returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.CalculateTemperature(System.UInt32)">
+            <summary>
+             Calculates the temperature in °C.
+            </summary>
+            <param name="adcTemperature">The temperature value read from the device.</param>
+            <returns>Temperature</returns>
+        </member>
+        <member name="M:Bme680Driver.Bme680.CalculatePressure(System.UInt32)">
+            <summary>
+             Returns the pressure in Pa.
+            </summary>
+            <param name="adcPressure">The pressure value read from the device.</param>
+            <returns>Pressure in Pa</returns>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C0">
+            <summary>
+            Filter coefficient of 0
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C1">
+            <summary>
+            Filter coefficient of 1
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C3">
+            <summary>
+            Filter coefficient of 3
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C7">
+            <summary>
+            Filter coefficient of 7
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C15">
+            <summary>
+            Filter coefficient of 15
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C31">
+            <summary>
+            Filter coefficient of 31
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C63">
+            <summary>
+            Filter coefficient of 63
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.FilterCoefficient.C127">
+            <summary>
+            Filter coefficient of 127
+            </summary>
+        </member>
+        <member name="T:Bme680Driver.HeaterProfileConfiguration">
+            <summary>
+            The heater profile configuration saved on the device.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.HeaterProfileConfiguration.HeaterProfile">
+            <summary>
+            The chosen heater profile slot, ranging from 0-9.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.HeaterProfileConfiguration.HeaterResistance">
+            <summary>
+            The heater resistance.
+            </summary>
+        </member>
+        <member name="P:Bme680Driver.HeaterProfileConfiguration.HeaterDuration">
+            <summary>
+            The heater duration in the internally used format.
+            </summary>
+        </member>
+        <member name="M:Bme680Driver.HeaterProfileConfiguration.GetHeaterDurationInMilliseconds">
+            <summary>
+            Gets the configured heater duration in ms.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Bme680Driver.PowerMode">
+            <summary>
+            BMP680s power modes
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.PowerMode.Sleep">
+            <summary>
+            Power saving mode, no measurements are performed
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.PowerMode.Forced">
+            <summary>
+            Device goes to sleep mode after one measurement
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Sampling.Skipped">
+            <summary>
+            Skipped (output set to 0x8000)
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Sampling.X1">
+            <summary>
+            oversampling x1
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Sampling.X2">
+            <summary>
+            oversampling x2
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Sampling.X4">
+            <summary>
+            oversampling x4
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Sampling.X8">
+            <summary>
+            oversampling x8
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Sampling.X16">
+            <summary>
+            oversampling x16
+            </summary>
+        </member>
+    </members>
+</doc>
