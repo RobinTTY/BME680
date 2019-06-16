@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <ApplicationIcon />
     <StartupObject />
-    <Version>1.0.6</Version>
+    <Version>1.0.8</Version>
     <Authors>Robin Mueller</Authors>
     <Company />
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -13,7 +13,9 @@
     <Copyright>© Robin Mueller</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>Bosch Bme680 Sensor Environmental IoT</PackageTags>
-    <PackageReleaseNotes>- Include XML documentation</PackageReleaseNotes>
+    <PackageReleaseNotes>
+      Updated I2c dependency. Add secondary i2c address.
+</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/RobinTTY/BME680</RepositoryUrl>
     <PackageProjectUrl>https://github.com/RobinTTY/BME680</PackageProjectUrl>
     <Description>Driver for the Bme680 environmental sensor. Provides a full range API for the entire sensor functionality.</Description>
@@ -24,7 +26,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Device.Gpio" Version="0.1.0-prerelease.19171.3" />
+    <PackageReference Include="System.Device.Gpio" Version="0.1.0-prerelease.19310.5" />
   </ItemGroup>
 
 </Project>

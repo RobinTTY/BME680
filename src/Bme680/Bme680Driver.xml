@@ -11,7 +11,12 @@
         </member>
         <member name="F:Bme680Driver.Bme680.DefaultI2cAddress">
             <summary>
-            The I2c address of the Bme680 is either 0x76 (primary) or 0x77 (secondary)
+            The default I2c address of the Bme680.
+            </summary>
+        </member>
+        <member name="F:Bme680Driver.Bme680.SecondaryI2cAddress">
+            <summary>
+            The secondary I2c address of the Bme680.
             </summary>
         </member>
         <member name="P:Bme680Driver.Bme680.Temperature">

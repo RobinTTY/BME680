@@ -26,9 +26,14 @@ namespace Bme680Driver
         private const byte DeviceId = 0x61;
 
         /// <summary>
-        /// The I2c address of the Bme680 is either 0x76 (primary) or 0x77 (secondary)
+        /// The default I2c address of the Bme680.
         /// </summary>
         public const byte DefaultI2cAddress = 0x76;
+
+        /// <summary>
+        /// The secondary I2c address of the Bme680.
+        /// </summary>
+        public const byte SecondaryI2cAddress = 0x77;
 
         /// <summary>
         /// Temperature in degrees Celsius.
