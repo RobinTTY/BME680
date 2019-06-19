@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <ApplicationIcon />
     <StartupObject />
-    <Version>1.0.8</Version>
+    <Version>1.0.9</Version>
     <Authors>Robin Mueller</Authors>
     <Company />
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -13,8 +13,7 @@
     <Copyright>© Robin Mueller</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>Bosch Bme680 Sensor Environmental IoT</PackageTags>
-    <PackageReleaseNotes>
-      Updated I2c dependency. Add secondary i2c address.
+    <PackageReleaseNotes>Fixed HeaterIsEnabled property getting the wrong status bit.
 </PackageReleaseNotes>
     <RepositoryUrl>https://github.com/RobinTTY/BME680</RepositoryUrl>
     <PackageProjectUrl>https://github.com/RobinTTY/BME680</PackageProjectUrl>

@@ -69,7 +69,7 @@ namespace Bme680Driver
             set
             {
                 var heaterStatus = Read8BitsFromRegister((byte)Register.CTRL_GAS_0);
-                heaterStatus = (byte)(((heaterStatus & (byte) ~Mask.HEAT_OFF) | Convert.ToByte(value)) << 3);
+                heaterStatus = (byte)(((heaterStatus & (byte)~Mask.HEAT_OFF) | Convert.ToByte(value)) << 3);
 
                 Write8BitsToRegister((byte)Register.CTRL_GAS_0, heaterStatus);
             }
@@ -89,7 +89,7 @@ namespace Bme680Driver
             set
             {
                 var gasConversion = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
-                gasConversion = (byte) (((gasConversion & (byte) ~Mask.RUN_GAS) | Convert.ToByte(value)) << 4);
+                gasConversion = (byte)(((gasConversion & (byte)~Mask.RUN_GAS) | Convert.ToByte(value)) << 4);
 
                 Write8BitsToRegister((byte)Register.CTRL_GAS_1, gasConversion);
             }
@@ -174,7 +174,7 @@ namespace Bme680Driver
             set
             {
                 var heaterProfile = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
-                heaterProfile = (byte) ((heaterProfile & (byte) ~Mask.NB_CONV) | (byte)value);
+                heaterProfile = (byte)((heaterProfile & (byte)~Mask.NB_CONV) | (byte)value);
 
 
                 Write8BitsToRegister((byte)Register.CTRL_GAS_1, heaterProfile);
@@ -199,7 +199,7 @@ namespace Bme680Driver
             set
             {
                 var filter = Read8BitsFromRegister((byte)Register.CONFIG);
-                filter = (byte) (((filter & (byte) ~Mask.FILTER_COEFFICIENT) | (byte)value) << 2);
+                filter = (byte)(((filter & (byte)~Mask.FILTER_COEFFICIENT) | (byte)value) << 2);
 
                 Write8BitsToRegister((byte)Register.CONFIG, filter);
             }
@@ -219,7 +219,7 @@ namespace Bme680Driver
             set
             {
                 var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-                status = (byte) (((status & (byte) ~Mask.TEMPERATURE_SAMPLING) | (byte) value) << 5);
+                status = (byte)(((status & (byte)~Mask.TEMPERATURE_SAMPLING) | (byte)value) << 5);
 
                 Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
             }
@@ -239,7 +239,7 @@ namespace Bme680Driver
             set
             {
                 var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
-                status = (byte) ((status & (byte) ~Mask.HUMIDITY_SAMPLING) | (byte) value);
+                status = (byte)((status & (byte)~Mask.HUMIDITY_SAMPLING) | (byte)value);
 
 
                 Write8BitsToRegister((byte)Register.CTRL_HUM, status);
@@ -260,7 +260,7 @@ namespace Bme680Driver
             set
             {
                 var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-                status = (byte) (((status & (byte) ~Mask.PRESSURE_SAMPLING) | (byte) value) << 2);
+                status = (byte)(((status & (byte)~Mask.PRESSURE_SAMPLING) | (byte)value) << 2);
 
 
                 Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
@@ -367,7 +367,7 @@ namespace Bme680Driver
                 InitDevice();
 
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte) ((status & (byte) ~Mask.PWR_MODE) | (byte) powerMode);
+            status = (byte)((status & (byte)~Mask.PWR_MODE) | (byte)powerMode);
 
             Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
         }
@@ -398,7 +398,7 @@ namespace Bme680Driver
             var measCycles = osToMeasCycles[(int)TemperatureSampling];
             measCycles += osToMeasCycles[(int)PressureSampling];
             measCycles += osToMeasCycles[(int)HumiditySampling];
-            
+
             var switchCount = osToSwitchCount[(int)TemperatureSampling];
             switchCount += osToSwitchCount[(int)PressureSampling];
             switchCount += osToSwitchCount[(int)HumiditySampling];
