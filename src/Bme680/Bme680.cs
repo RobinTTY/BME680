@@ -70,7 +70,6 @@ namespace Bme680Driver
             {
                 var heaterStatus = Read8BitsFromRegister((byte)Register.CTRL_GAS_0);
                 heaterStatus = (byte)((heaterStatus & (byte)~Mask.HEAT_OFF) | Convert.ToByte(value) << 3);
-                Console.WriteLine("Heater is enabled: " + heaterStatus);
 
                 Write8BitsToRegister((byte)Register.CTRL_GAS_0, heaterStatus);
             }
