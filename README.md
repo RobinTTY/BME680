@@ -73,7 +73,7 @@ class Program
 
             // set custom settings for gas conversion
             bme680.GasConversionIsEnabled = true;
-            bme680.HeaterIsEnabled = true;
+            bme680.HeaterIsDisabled = false;
             
             // The BME680 sensor can save up to 10 heater profiles for use                
             // this profile will set the target temperature of the heating plate to 330°C
