@@ -4,6 +4,7 @@ using System;
 using System.Buffers.Binary;
 using System.Device.I2c;
 using System.Device.Spi;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Bme680Driver
@@ -58,7 +59,7 @@ namespace Bme680Driver
         /// <summary>
         /// Gets or sets whether the heater is enabled.
         /// </summary>
-        public bool HeaterIsEnabled
+        public bool HeaterIsDisabled
         {
             get
             {
@@ -70,6 +71,7 @@ namespace Bme680Driver
             {
                 var heaterStatus = Read8BitsFromRegister((byte)Register.CTRL_GAS_0);
                 heaterStatus = (byte)((heaterStatus & (byte)~Mask.HEAT_OFF) | Convert.ToByte(value) << 3);
+                Console.WriteLine("Heater is enabled: " + heaterStatus);
 
                 Write8BitsToRegister((byte)Register.CTRL_GAS_0, heaterStatus);
             }
@@ -175,7 +177,7 @@ namespace Bme680Driver
             {
                 var heaterProfile = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
                 heaterProfile = (byte)((heaterProfile & (byte)~Mask.NB_CONV) | (byte)value);
-                
+
                 Write8BitsToRegister((byte)Register.CTRL_GAS_1, heaterProfile);
             }
         }
@@ -239,7 +241,7 @@ namespace Bme680Driver
             {
                 var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
                 status = (byte)((status & (byte)~Mask.HUMIDITY_SAMPLING) | (byte)value);
-                
+
                 Write8BitsToRegister((byte)Register.CTRL_HUM, status);
             }
         }
@@ -259,7 +261,7 @@ namespace Bme680Driver
             {
                 var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
                 status = (byte)((status & (byte)~Mask.PRESSURE_SAMPLING) | (byte)value << 2);
-                
+
                 Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
             }
         }
@@ -310,8 +312,9 @@ namespace Bme680Driver
             if (readSignature != DeviceId)
                 throw new Exception($"Device ID {readSignature} is not the same as expected {DeviceId}. Please check if you are using the right device.");
 
-            _initialized = true;
+            TriggerSoftReset();
             _calibrationData.ReadFromDevice(this);
+            _initialized = true;
 
             // perform a single temperature reading to set the temperature fine and set the default configuration
             TemperatureSampling = Sampling.X1;
@@ -349,7 +352,7 @@ namespace Bme680Driver
             SetPowerMode(PowerMode.Forced);
 
             if (GasConversionIsEnabled)
-                HeaterIsEnabled = true;
+                HeaterIsDisabled = false;
 
             await Task.Delay(duration);
         }
