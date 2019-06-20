@@ -4,7 +4,6 @@ using System;
 using System.Buffers.Binary;
 using System.Device.I2c;
 using System.Device.Spi;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Bme680Driver
