@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <ApplicationIcon />
     <StartupObject />
-    <Version>1.0.9</Version>
+    <Version>1.0.10</Version>
     <Authors>Robin Mueller</Authors>
     <Company />
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -13,8 +13,7 @@
     <Copyright>© Robin Mueller</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>Bosch Bme680 Sensor Environmental IoT</PackageTags>
-    <PackageReleaseNotes>Fixed HeaterIsEnabled property getting the wrong status bit.
-</PackageReleaseNotes>
+    <PackageReleaseNotes>Removed logging</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/RobinTTY/BME680</RepositoryUrl>
     <PackageProjectUrl>https://github.com/RobinTTY/BME680</PackageProjectUrl>
     <Description>Driver for the Bme680 environmental sensor. Provides a full range API for the entire sensor functionality.</Description>

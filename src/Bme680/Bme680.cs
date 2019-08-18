@@ -690,15 +690,12 @@ namespace Bme680Driver
                     throw new ArgumentOutOfRangeException();
             }
 
-            switch (mode)
+            return mode switch
             {
-                case Endianness.LittleEndian:
-                    return BinaryPrimitives.ReadUInt16LittleEndian(bytes);
-                case Endianness.BigEndian:
-                    return BinaryPrimitives.ReadUInt16BigEndian(bytes);
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
-            }
+                Endianness.LittleEndian => BinaryPrimitives.ReadUInt16LittleEndian(bytes),
+                Endianness.BigEndian => BinaryPrimitives.ReadUInt16BigEndian(bytes),
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
+            };
         }
 
         private void Write8BitsToRegister(byte register, byte data)

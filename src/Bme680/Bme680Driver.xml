@@ -39,7 +39,7 @@
             Gets the last measured gas resistance in Ohm from the corresponding register.
             </summary>
         </member>
-        <member name="P:Bme680Driver.Bme680.HeaterIsEnabled">
+        <member name="P:Bme680Driver.Bme680.HeaterIsDisabled">
             <summary>
             Gets or sets whether the heater is enabled.
             </summary>
