@@ -9,7 +9,8 @@ The datasheet can be found [here](https://ae-bst.resource.bosch.com/media/_tech/
 ## Example on how to use this library
 
 The easiest way to use this library is by getting it from nuget: https://www.nuget.org/packages/Bme680Driver/  
-You can also build it and reference it as dependency in your project or copy all the files to your project. 
+You can also build it and reference it as dependency in your project or copy all the files to your project.  
+This driver is also included in the [Iot.Device.Bindings](https://github.com/dotnet/iot) library which includes many other device bindings.
 
 You can either use the default settings of the sensor which will perform a measurement of temperature, humidity, pressure and gas (volatile organic compounds) or change those settings to suit your use case.
 
