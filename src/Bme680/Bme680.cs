@@ -41,26 +41,6 @@ namespace Bme680Driver
         public const byte SecondaryI2cAddress = 0x77;
 
         /// <summary>
-        /// Temperature in degrees Celsius.
-        /// </summary>
-        public double Temperature => ReadTemperature();
-
-        /// <summary>
-        /// Relative humidity.
-        /// </summary>
-        public double Humidity => ReadHumidity();
-
-        /// <summary>
-        /// Pressure in Pascal.
-        /// </summary>
-        public double Pressure => ReadPressure();
-
-        /// <summary>
-        /// Gets the last measured gas resistance in Ohm from the corresponding register.
-        /// </summary>
-        public double GasResistance => ReadGasResistance();
-
-        /// <summary>
         /// Gets or sets whether the heater is enabled.
         /// </summary>
         public bool HeaterIsDisabled
@@ -321,11 +301,12 @@ namespace Bme680Driver
             _initialized = false;
         }
 
+        // TODO: Create blocking version
         /// <summary>
         /// Performs a measurement by setting the sensor to forced mode, awaits the result.
         /// </summary>
-        /// <returns></returns>
-        public async Task PerformMeasurement()
+        /// <returns><see cref="Bme680ReadResult"/> containing the measured values.</returns>
+        public async Task<Bme680ReadResult> PerformMeasurementAsync()
         {
             var duration = GetProfileDuration(CurrentHeaterProfile);
             SetPowerMode(PowerMode.Forced);
@@ -334,6 +315,18 @@ namespace Bme680Driver
                 HeaterIsDisabled = false;
 
             await Task.Delay(duration);
+            var temp = ReadTemperature();
+            var hum = ReadHumidity();
+            var press = ReadPressure();
+            var gasRes = ReadGasResistance();
+
+            return new Bme680ReadResult
+            {
+                Temperature = temp,
+                Humidity = hum,
+                Pressure = press,
+                GasResistance = gasRes
+            };
         }
 
         /// <summary>
@@ -436,7 +429,7 @@ namespace Bme680Driver
         {
             // Read temperature before setting other sampling rates for faster measurement
             TemperatureSampling = Sampling.X1;
-            PerformMeasurement().Wait();
+            PerformMeasurementAsync().Wait();
             var temp = ReadTemperature();
 
             // Set remaining sampling rates and filter
