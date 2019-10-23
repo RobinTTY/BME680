@@ -6,6 +6,7 @@ using System.Device.I2c;
 using System.Device.Spi;
 using System.Threading.Tasks;
 
+// TODO: _initialized needed?
 namespace Bme680Driver
 {
     /// <summary>
@@ -286,6 +287,13 @@ namespace Bme680Driver
             _i2cDevice = i2cDevice;
             _calibrationData = new CalibrationData();
             _protocol = CommunicationProtocol.I2C;
+
+            // Check device signature which should be the same for all Bme680 sensors
+            var readSignature = Read8BitsFromRegister((byte)Register.CHIP_ID);
+            if (readSignature != DeviceId)
+                throw new Exception($"Device ID {readSignature} is not the same as expected {DeviceId}. Please check if you are using the right device.");
+
+            _calibrationData.ReadFromDevice(this);
         }
 
         private Bme680(SpiDevice spiDevice)
@@ -302,37 +310,6 @@ namespace Bme680Driver
         {
             I2C,
             Spi
-        }
-
-        /// <summary>
-        /// Initializes the BMP680 sensor, making it ready for use.
-        /// </summary>
-        public void InitDevice()
-        {
-            var readSignature = Read8BitsFromRegister((byte)Register.CHIP_ID);
-
-            if (readSignature != DeviceId)
-                throw new Exception($"Device ID {readSignature} is not the same as expected {DeviceId}. Please check if you are using the right device.");
-
-            TriggerSoftReset();
-            _calibrationData.ReadFromDevice(this);
-            _initialized = true;
-
-            // perform a single temperature reading to set the temperature fine and set the default configuration
-            TemperatureSampling = Sampling.X1;
-            PressureSampling = Sampling.Skipped;
-            HumiditySampling = Sampling.Skipped;
-            FilterCoefficient = FilterCoefficient.C0;
-            GasConversionIsEnabled = false;
-
-            PerformMeasurement().Wait();
-
-            // turn on humidity, pressure and gas conversion for future measurements
-            HumiditySampling = Sampling.X1;
-            PressureSampling = Sampling.X1;
-            GasConversionIsEnabled = true;
-            SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, Temperature);
-            CurrentHeaterProfile = HeaterProfile.Profile1;
         }
 
         /// <summary>
@@ -365,8 +342,9 @@ namespace Bme680Driver
         /// <param name="powerMode"></param>
         public void SetPowerMode(PowerMode powerMode)
         {
-            if (!_initialized)
-                InitDevice();
+            // TODO: check need for initialized value
+            //if (!_initialized)
+            //    InitDevice();
 
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
             status = (byte)((status & (byte)~Mask.PWR_MODE) | (byte)powerMode);
@@ -449,6 +427,27 @@ namespace Bme680Driver
             var heaterDuration = Read8BitsFromRegister((byte)((byte)Register.GAS_WAIT0 + profile));
 
             return new HeaterProfileConfiguration(profile, heaterTemp, heaterDuration);
+        }
+
+        /// <summary>
+        /// Set default configuration for basic measurements
+        /// </summary>
+        private void SetDefaultConfiguration()
+        {
+            // Read temperature before setting other sampling rates for faster measurement
+            TemperatureSampling = Sampling.X1;
+            PerformMeasurement().Wait();
+            var temp = ReadTemperature();
+
+            // Set remaining sampling rates and filter
+            HumiditySampling = Sampling.X1;
+            PressureSampling = Sampling.X1;
+            FilterCoefficient = FilterCoefficient.C0;
+
+            // Set basic heater profile
+            GasConversionIsEnabled = true;
+            SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, temp);
+            CurrentHeaterProfile = HeaterProfile.Profile1;
         }
 
         /// <summary>
