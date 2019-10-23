@@ -13,6 +13,10 @@ namespace Bme680Driver
     /// </summary>
     public class Bme680 : IDisposable
     {
+        private static readonly byte[] OsToMeasCycles = { 0, 1, 2, 4, 8, 16 };
+        private static readonly byte[] OsToSwitchCount = { 0, 1, 1, 1, 1, 1 };
+        private static readonly double[] K1Lookup = { 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0 };
+        private static readonly double[] K2Lookup = { 0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
         private I2cDevice _i2cDevice;
         private SpiDevice _spiDevice;
@@ -390,16 +394,13 @@ namespace Bme680Driver
         /// <returns></returns>
         public int GetProfileDuration(HeaterProfile profile)
         {
-            var osToMeasCycles = new byte[] { 0, 1, 2, 4, 8, 16 };
-            var osToSwitchCount = new byte[] { 0, 1, 1, 1, 1, 1 };
+            var measCycles = OsToMeasCycles[(int)TemperatureSampling];
+            measCycles += OsToMeasCycles[(int)PressureSampling];
+            measCycles += OsToMeasCycles[(int)HumiditySampling];
 
-            var measCycles = osToMeasCycles[(int)TemperatureSampling];
-            measCycles += osToMeasCycles[(int)PressureSampling];
-            measCycles += osToMeasCycles[(int)HumiditySampling];
-
-            var switchCount = osToSwitchCount[(int)TemperatureSampling];
-            switchCount += osToSwitchCount[(int)PressureSampling];
-            switchCount += osToSwitchCount[(int)HumiditySampling];
+            var switchCount = OsToSwitchCount[(int)TemperatureSampling];
+            switchCount += OsToSwitchCount[(int)PressureSampling];
+            switchCount += OsToSwitchCount[(int)HumiditySampling];
 
             double measDuration = measCycles * 1963;
             measDuration += 477 * switchCount;      // TPH switching duration
@@ -595,12 +596,9 @@ namespace Bme680Driver
 
         private double CalculateGasResistance(ushort adcGasRes, byte gasRange)
         {
-            var k1Lookup = new[] { 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0 };
-            var k2Lookup = new[] { 0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-
             var var1 = 1340.0 + 5.0 * _calibrationData.RangeSwErr;
-            var var2 = var1 * (1.0 + k1Lookup[gasRange] / 100.0);
-            var var3 = 1.0 + k2Lookup[gasRange] / 100.0;
+            var var2 = var1 * (1.0 + K1Lookup[gasRange] / 100.0);
+            var var3 = 1.0 + K2Lookup[gasRange] / 100.0;
             var gasResistance = 1.0 / (var3 * 0.000000125 * (1 << gasRange) * ((adcGasRes - 512.0) / var2 + 1.0));
 
             return gasResistance;
