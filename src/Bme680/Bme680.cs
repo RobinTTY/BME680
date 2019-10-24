@@ -19,13 +19,13 @@ namespace Bme680Driver
         private static readonly double[] K1Lookup = { 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0 };
         private static readonly double[] K2Lookup = { 0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
+        // ReSharper disable once InconsistentNaming
         private I2cDevice _i2cDevice;
         private SpiDevice _spiDevice;
         private readonly CommunicationProtocol _protocol;
 
         private readonly CalibrationData _calibrationData;
         private int _temperatureFine;
-        private bool _initialized;
 
         // The ChipId of the BME680
         private const byte DeviceId = 0x61;
@@ -33,12 +33,37 @@ namespace Bme680Driver
         /// <summary>
         /// The default I2c address of the Bme680.
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
+        // ReSharper disable once InconsistentNaming
         public const byte DefaultI2cAddress = 0x76;
 
         /// <summary>
         /// The secondary I2c address of the Bme680.
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
+        // ReSharper disable once InconsistentNaming
         public const byte SecondaryI2cAddress = 0x77;
+
+        /// <summary>
+        /// Temperature, humidity, pressure and gas resistance sensor Bme680.
+        /// </summary>
+        /// <param name="i2cDevice">The used I2c communication device.</param>
+        // ReSharper disable once UnusedMember.Global
+        // ReSharper disable once InconsistentNaming
+        public Bme680(I2cDevice i2cDevice)
+        {
+            _i2cDevice = i2cDevice;
+            _calibrationData = new CalibrationData();
+            _protocol = CommunicationProtocol.I2C;
+
+            // Check device signature which should be the same for all Bme680 sensors
+            var readSignature = Read8BitsFromRegister((byte)Register.CHIP_ID);
+            if (readSignature != DeviceId)
+                throw new Exception($"Device ID {readSignature} is not the same as expected {DeviceId}. Please check if you are using the right device.");
+
+            _calibrationData.ReadFromDevice(this);
+            SetDefaultConfiguration();
+        }
 
         /// <summary>
         /// Gets or sets whether the heater is enabled.
@@ -258,34 +283,6 @@ namespace Bme680Driver
             return (Sampling)value;
         }
 
-        /// <summary>
-        /// Temperature, humidity, pressure and gas resistance sensor Bme680.
-        /// </summary>
-        /// <param name="i2cDevice">The used I2c communication device.</param>
-        public Bme680(I2cDevice i2cDevice)
-        {
-            _i2cDevice = i2cDevice;
-            _calibrationData = new CalibrationData();
-            _protocol = CommunicationProtocol.I2C;
-
-            // Check device signature which should be the same for all Bme680 sensors
-            var readSignature = Read8BitsFromRegister((byte)Register.CHIP_ID);
-            if (readSignature != DeviceId)
-                throw new Exception($"Device ID {readSignature} is not the same as expected {DeviceId}. Please check if you are using the right device.");
-
-            _calibrationData.ReadFromDevice(this);
-        }
-
-        private Bme680(SpiDevice spiDevice)
-        {
-            // not fully implemented yet, translation of memory addresses and memory page access missing
-            throw new NotImplementedException();
-
-            //_spiDevice = spiDevice;
-            //_calibrationData = new CalibrationData();
-            //_protocol = CommunicationProtocol.Spi;
-        }
-
         private enum CommunicationProtocol
         {
             I2C,
@@ -293,12 +290,12 @@ namespace Bme680Driver
         }
 
         /// <summary>
-        /// Triggers a soft reset on the device which has the same effect as power-on reset.
+        /// Triggers a soft reset which sets the device back to default settings.
         /// </summary>
         public void TriggerSoftReset()
         {
             Write8BitsToRegister((byte)Register.RESET, 0xB6);
-            _initialized = false;
+            SetDefaultConfiguration();
         }
 
         // TODO: Create blocking version
@@ -327,34 +324,6 @@ namespace Bme680Driver
                 Pressure = press,
                 GasResistance = gasRes
             };
-        }
-
-        /// <summary>
-        /// Sets the power mode to the given mode.
-        /// </summary>
-        /// <param name="powerMode"></param>
-        public void SetPowerMode(PowerMode powerMode)
-        {
-            // TODO: check need for initialized value
-            //if (!_initialized)
-            //    InitDevice();
-
-            var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)((status & (byte)~Mask.PWR_MODE) | (byte)powerMode);
-
-            Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
-        }
-
-        /// <summary>
-        /// Reads the current power mode the device is running in.
-        /// </summary>
-        /// <returns></returns>
-        public PowerMode ReadPowerMode()
-        {
-            var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-            status = (byte)(status & (byte)Mask.PWR_MODE);
-
-            return (PowerMode)status;
         }
 
         /// <summary>
@@ -420,6 +389,22 @@ namespace Bme680Driver
             var heaterDuration = Read8BitsFromRegister((byte)((byte)Register.GAS_WAIT0 + profile));
 
             return new HeaterProfileConfiguration(profile, heaterTemp, heaterDuration);
+        }
+
+        /// <summary>
+        /// Sets the power mode to the given mode.
+        /// </summary>
+        /// <param name="powerMode"></param>
+        private void SetPowerMode(PowerMode powerMode)
+        {
+            // TODO: check need for initialized value
+            //if (!_initialized)
+            //    InitDevice();
+
+            var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
+            status = (byte)((status & (byte)~Mask.PWR_MODE) | (byte)powerMode);
+
+            Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
         }
 
         /// <summary>
@@ -556,6 +541,7 @@ namespace Bme680Driver
             var1 = (1.0 + var1 / 32768.0) * _calibrationData.ParP1;
             var pressure = 1048576.0 - adcPressure;
 
+            // ReSharper disable once CompareOfFloatsByEqualityOperator
             if (var1 == 0)
                 return 0;
 

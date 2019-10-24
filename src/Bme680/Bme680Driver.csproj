@@ -17,11 +17,25 @@
     <RepositoryUrl>https://github.com/RobinTTY/BME680</RepositoryUrl>
     <PackageProjectUrl>https://github.com/RobinTTY/BME680</PackageProjectUrl>
     <Description>Driver for the Bme680 environmental sensor. Provides a full range API for the entire sensor functionality.</Description>
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DocumentationFile>C:\Projects\C#\BME680\src\Bme680\Bme680Driver.xml</DocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Bme680.cs" />
+    <Compile Include="Bme680ReadResult.cs" />
+    <Compile Include="CalibrationData.cs" />
+    <Compile Include="FilterCoefficient.cs" />
+    <Compile Include="HeaterProfile.cs" />
+    <Compile Include="HeaterProfileConfiguration.cs" />
+    <Compile Include="Mask.cs" />
+    <Compile Include="PowerMode.cs" />
+    <Compile Include="Register.cs" />
+    <Compile Include="Sampling.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Device.Gpio" Version="1.0.0" />
