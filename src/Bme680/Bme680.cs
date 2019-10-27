@@ -2,8 +2,10 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Device.I2c;
 using System.Device.Spi;
+using System.Linq;
 using System.Threading.Tasks;
 
 // TODO: _initialized needed?
@@ -19,13 +21,26 @@ namespace Bme680Driver
         private static readonly double[] K1Lookup = { 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0 };
         private static readonly double[] K2Lookup = { 0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
+        private readonly List<HeaterProfileConfiguration> _heaterConfigs = new List<HeaterProfileConfiguration>();
+        private readonly CalibrationData _calibrationData;
+        private bool _gasConversionIsEnabled;
+        private bool _heaterIsEnabled;
+        private int _temperatureFine;
+
+        private HeaterProfile _heaterProfile;
+        private FilterCoefficient _filterCoefficient;
+        private Sampling _temperatureSampling;
+        private Sampling _humiditySampling;
+        private Sampling _pressureSampling;
+
+
         // ReSharper disable once InconsistentNaming
         private I2cDevice _i2cDevice;
         private SpiDevice _spiDevice;
         private readonly CommunicationProtocol _protocol;
 
-        private readonly CalibrationData _calibrationData;
-        private int _temperatureFine;
+        
+        
 
         // The ChipId of the BME680
         private const byte DeviceId = 0x61;
@@ -68,20 +83,16 @@ namespace Bme680Driver
         /// <summary>
         /// Gets or sets whether the heater is enabled.
         /// </summary>
-        public bool HeaterIsDisabled
+        public bool HeaterIsEnabled
         {
-            get
-            {
-                var heaterStatus = Read8BitsFromRegister((byte)Register.CTRL_GAS_0);
-                heaterStatus = (byte)((heaterStatus & (byte)Mask.HEAT_OFF) >> 3);
-                return Convert.ToBoolean(heaterStatus);
-            }
+            get => _heaterIsEnabled;
             set
             {
                 var heaterStatus = Read8BitsFromRegister((byte)Register.CTRL_GAS_0);
-                heaterStatus = (byte)((heaterStatus & (byte)~Mask.HEAT_OFF) | Convert.ToByte(value) << 3);
+                heaterStatus = (byte)((heaterStatus & (byte)~Mask.HEAT_OFF) | Convert.ToByte(!value) << 3);
 
                 Write8BitsToRegister((byte)Register.CTRL_GAS_0, heaterStatus);
+                _heaterIsEnabled = value;
             }
         }
 
@@ -90,18 +101,14 @@ namespace Bme680Driver
         /// </summary>
         public bool GasConversionIsEnabled
         {
-            get
-            {
-                var gasConversion = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
-                gasConversion = (byte)((gasConversion & (byte)Mask.RUN_GAS) >> 4);
-                return Convert.ToBoolean(gasConversion);
-            }
+            get => _gasConversionIsEnabled;
             set
             {
                 var gasConversion = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
                 gasConversion = (byte)((gasConversion & (byte)~Mask.RUN_GAS) | Convert.ToByte(value) << 4);
 
                 Write8BitsToRegister((byte)Register.CTRL_GAS_1, gasConversion);
+                _gasConversionIsEnabled = value;
             }
         }
 
@@ -175,18 +182,20 @@ namespace Bme680Driver
         /// </summary>
         public HeaterProfile CurrentHeaterProfile
         {
-            get
-            {
-                var heaterProfile = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
-                heaterProfile = (byte)(heaterProfile & (byte)Mask.NB_CONV);
-                return (HeaterProfile)heaterProfile;
-            }
+            get => _heaterProfile;
             set
             {
-                var heaterProfile = Read8BitsFromRegister((byte)Register.CTRL_GAS_1);
-                heaterProfile = (byte)((heaterProfile & (byte)~Mask.NB_CONV) | (byte)value);
+                if (_heaterConfigs.Exists(config => config.HeaterProfile == value))
+                {
+                    if (!Enum.IsDefined(typeof(HeaterProfile), value))
+                        throw new ArgumentOutOfRangeException();
 
-                Write8BitsToRegister((byte)Register.CTRL_GAS_1, heaterProfile);
+                    var heaterProfile = Read8BitsFromRegister((byte) Register.CTRL_GAS_1);
+                    heaterProfile = (byte) ((heaterProfile & (byte) ~Mask.NB_CONV) | (byte) value);
+
+                    Write8BitsToRegister((byte)Register.CTRL_GAS_1, heaterProfile);
+                    _heaterProfile = value;
+                }
             }
         }
 
@@ -199,18 +208,17 @@ namespace Bme680Driver
         /// </summary>
         public FilterCoefficient FilterCoefficient
         {
-            get
-            {
-                var filter = Read8BitsFromRegister((byte)Register.CONFIG);
-                filter = (byte)((filter & (byte)Mask.FILTER_COEFFICIENT) >> 2);
-                return (FilterCoefficient)filter;
-            }
+            get => _filterCoefficient;
             set
             {
+                if (!Enum.IsDefined(typeof(FilterCoefficient), value))
+                    throw new ArgumentOutOfRangeException();
+
                 var filter = Read8BitsFromRegister((byte)Register.CONFIG);
                 filter = (byte)((filter & (byte)~Mask.FILTER_COEFFICIENT) | (byte)value << 2);
 
                 Write8BitsToRegister((byte)Register.CONFIG, filter);
+                _filterCoefficient = value;
             }
         }
 
@@ -219,18 +227,17 @@ namespace Bme680Driver
         /// </summary>
         public Sampling TemperatureSampling
         {
-            get
-            {
-                var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-                status = (byte)((status & (byte)Mask.TEMPERATURE_SAMPLING) >> 5);
-                return ByteToSampling(status);
-            }
+            get => _temperatureSampling;
             set
             {
+                if (!Enum.IsDefined(typeof(Sampling), value))
+                    throw new ArgumentOutOfRangeException();
+
                 var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
                 status = (byte)((status & (byte)~Mask.TEMPERATURE_SAMPLING) | (byte)value << 5);
 
                 Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
+                _temperatureSampling = value;
             }
         }
 
@@ -239,18 +246,17 @@ namespace Bme680Driver
         /// </summary>
         public Sampling HumiditySampling
         {
-            get
-            {
-                var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
-                status = (byte)(status & (byte)Mask.HUMIDITY_SAMPLING);
-                return ByteToSampling(status);
-            }
+            get => _humiditySampling;
             set
             {
+                if (!Enum.IsDefined(typeof(Sampling), value))
+                    throw new ArgumentOutOfRangeException();
+
                 var status = Read8BitsFromRegister((byte)Register.CTRL_HUM);
                 status = (byte)((status & (byte)~Mask.HUMIDITY_SAMPLING) | (byte)value);
 
                 Write8BitsToRegister((byte)Register.CTRL_HUM, status);
+                _humiditySampling = value;
             }
         }
 
@@ -259,28 +265,18 @@ namespace Bme680Driver
         /// </summary>
         public Sampling PressureSampling
         {
-            get
-            {
-                var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
-                status = (byte)((status & (byte)Mask.PRESSURE_SAMPLING) >> 2);
-                return ByteToSampling(status);
-            }
+            get => _pressureSampling;
             set
             {
+                if (!Enum.IsDefined(typeof(Sampling), value))
+                    throw new ArgumentOutOfRangeException();
+
                 var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
                 status = (byte)((status & (byte)~Mask.PRESSURE_SAMPLING) | (byte)value << 2);
 
                 Write8BitsToRegister((byte)Register.CTRL_MEAS, status);
+                _pressureSampling = value;
             }
-        }
-
-        private Sampling ByteToSampling(byte value)
-        {
-            // Values >=5 equals X16
-            if (value >= 5)
-                return Sampling.X16;
-
-            return (Sampling)value;
         }
 
         private enum CommunicationProtocol
@@ -309,7 +305,7 @@ namespace Bme680Driver
             SetPowerMode(PowerMode.Forced);
 
             if (GasConversionIsEnabled)
-                HeaterIsDisabled = false;
+                HeaterIsEnabled = false;
 
             await Task.Delay(duration);
             var temp = ReadTemperature();
@@ -351,8 +347,8 @@ namespace Bme680Driver
             measDuration /= 1000.0;                 // convert to ms
             measDuration += 1;                      // wake up duration of 1ms
 
-            if (GasConversionIsEnabled)
-                measDuration += GetHeaterProfileFromDevice(profile).GetHeaterDurationInMilliseconds();
+            if (GasConversionIsEnabled && _heaterConfigs.Exists(config => config.HeaterProfile == profile))
+                measDuration += _heaterConfigs.Single(config => config.HeaterProfile == profile).HeaterDuration;
 
             return (int)Math.Ceiling(measDuration);
         }
