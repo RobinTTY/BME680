@@ -33,15 +33,11 @@ namespace Bme680Driver
         private Sampling _humiditySampling;
         private Sampling _pressureSampling;
 
-
         // ReSharper disable once InconsistentNaming
         private I2cDevice _i2cDevice;
         private SpiDevice _spiDevice;
         private readonly CommunicationProtocol _protocol;
-
         
-        
-
         // The ChipId of the BME680
         private const byte DeviceId = 0x61;
 
@@ -308,18 +304,19 @@ namespace Bme680Driver
                 HeaterIsEnabled = false;
 
             await Task.Delay(duration);
-            var temp = ReadTemperature();
-            var hum = ReadHumidity();
-            var press = ReadPressure();
-            var gasRes = ReadGasResistance();
+            return ReadResultRegisters();
+        }
 
-            return new Bme680ReadResult
-            {
-                Temperature = temp,
-                Humidity = hum,
-                Pressure = press,
-                GasResistance = gasRes
-            };
+        public Bme680ReadResult PerformMeasurement()
+        {
+            var duration = GetProfileDuration(CurrentHeaterProfile);
+            SetPowerMode(PowerMode.Forced);
+
+            if (GasConversionIsEnabled)
+                HeaterIsEnabled = false;
+
+            Task.Delay(duration).Wait();
+            return ReadResultRegisters();
         }
 
         /// <summary>
@@ -385,6 +382,22 @@ namespace Bme680Driver
             var heaterDuration = Read8BitsFromRegister((byte)((byte)Register.GAS_WAIT0 + profile));
 
             return new HeaterProfileConfiguration(profile, heaterTemp, heaterDuration);
+        }
+
+        private Bme680ReadResult ReadResultRegisters()
+        {
+            var temp = ReadTemperature();
+            var hum = ReadHumidity();
+            var press = ReadPressure();
+            var gasRes = ReadGasResistance();
+
+            return new Bme680ReadResult
+            {
+                Temperature = temp,
+                Humidity = hum,
+                Pressure = press,
+                GasResistance = gasRes
+            };
         }
 
         /// <summary>
