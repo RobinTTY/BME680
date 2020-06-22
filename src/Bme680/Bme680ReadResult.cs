@@ -8,18 +8,18 @@
         /// <summary>
         /// Temperature in degrees Celsius.
         /// </summary>
-        public double Temperature;
+        public double Temperature { get; set; }
         /// <summary>
         /// Relative humidity.
         /// </summary>
-        public double Humidity;
+        public double Humidity { get; set; }
         /// <summary>
         /// Pressure in Pascal.
         /// </summary>
-        public double Pressure;
+        public double Pressure { get; set; }
         /// <summary>
         /// Gets the last measured gas resistance in Ohm from the corresponding register.
         /// </summary>
-        public double GasResistance;
+        public double GasResistance { get; set; }
     }
 }

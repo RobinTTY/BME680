@@ -8,7 +8,6 @@ using System.Device.Spi;
 using System.Linq;
 using System.Threading.Tasks;
 
-// TODO: _initialized needed?
 namespace Bme680Driver
 {
     /// <summary>
@@ -290,7 +289,6 @@ namespace Bme680Driver
             SetDefaultConfiguration();
         }
 
-        // TODO: Create blocking version
         /// <summary>
         /// Performs a measurement by setting the sensor to forced mode, awaits the result.
         /// </summary>
@@ -406,10 +404,6 @@ namespace Bme680Driver
         /// <param name="powerMode"></param>
         private void SetPowerMode(PowerMode powerMode)
         {
-            // TODO: check need for initialized value
-            //if (!_initialized)
-            //    InitDevice();
-
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
             status = (byte)((status & (byte)~Mask.PWR_MODE) | (byte)powerMode);
 
