@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <Reference Include="Bme680Driver">
-      <HintPath>..\bin\Debug\net5.0\Bme680Driver.dll</HintPath>
+      <HintPath>..\..\bin\Debug\net5.0\Bme680Driver.dll</HintPath>
     </Reference>
   </ItemGroup>
 

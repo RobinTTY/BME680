@@ -1,49 +1,11 @@
-# BME680
+﻿using System;
+using System.Device.I2c;
+using System.Threading.Tasks;
+using Bme680Driver;
 
-C# driver for the Bosch BME680 temperature/humidity/pressure/air quality sensor. This driver is ported from the [Bosch C driver](https://github.com/BoschSensortec/BME680_driver). 
-
-__The driver only supports the I²C protocol at the moment.__
-
-The datasheet can be found [here](https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BME680-DS001.pdf).
-
-## Example on how to use this library
-
-The easiest way to use this library is by getting it from nuget: https://www.nuget.org/packages/Bme680Driver/  
-A similar version of this driver is included in the [Iot.Device.Bindings](https://github.com/dotnet/iot) library which includes many other device bindings.
-
-You can either use the default settings of the sensor which will perform a measurement of temperature, humidity, pressure and gas (volatile organic compounds) or change those settings to suit your use case.
-
-To use the default settings you could do something like this:
-
-```C#
-class Program
-    {
-        static async Task Main(string[] args)
-        {
-            var settings = new I2cConnectionSettings(1, Bme680.SecondaryI2cAddress);
-            var i2CDevice = I2cDevice.Create(settings);
-            using var bme680 = new Bme680(i2CDevice);
-
-            while (true)
-            {
-                var measurement = await bme680.PerformMeasurementAsync();
-
-                Console.WriteLine($"Temperature: {measurement.Temperature:0.##}°C");
-                Console.WriteLine($"Humidity: {measurement.Humidity:0.##}%");
-                Console.WriteLine($"Pressure: {measurement.Pressure:0.##} Pa");
-                Console.WriteLine($"Gas Resistance: {measurement.GasResistance:0.##} Ohm");
-                Console.WriteLine();
-
-                await Task.Delay(1000);
-            }
-        }
-    }
-```
-
-To use your custom settings you could do something like this:
-
-```C#
-class Program
+namespace Bme680Sample
+{
+    class Program
     {
         static async Task Main(string[] args)
         {
@@ -90,6 +52,4 @@ class Program
             }
         }
     }
-```
-
-You can find these examples in the [samples](src/Bme680/samples) folder.
+}
