@@ -21,6 +21,7 @@ namespace Bme680Sample
                 Console.WriteLine($"Humidity: {measurement.Humidity}");
                 Console.WriteLine($"Pressure: {measurement.Pressure}");
                 Console.WriteLine($"Gas Resistance: {measurement.GasResistance}");
+                Console.WriteLine();
 
                 await Task.Delay(1000);
             }

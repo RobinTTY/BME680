@@ -423,8 +423,7 @@ namespace Bme680Driver
         {
             // Read temperature before setting other sampling rates for faster measurement
             TemperatureSampling = Sampling.X1;
-            PerformMeasurementAsync().Wait();
-            var temp = ReadTemperature();
+            var result = PerformMeasurement();
 
             // Set remaining sampling rates and filter
             HumiditySampling = Sampling.X1;
@@ -433,7 +432,7 @@ namespace Bme680Driver
 
             // Set basic heater profile
             GasConversionIsEnabled = true;
-            SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, temp);
+            SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, result.Temperature);
             CurrentHeaterProfile = HeaterProfile.Profile1;
         }
 
