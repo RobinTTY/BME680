@@ -1,4 +1,4 @@
-# BME680
+# BME680 ![Build Library](https://github.com/RobinTTY/BME680/workflows/Build%20Library/badge.svg)
 
 C# driver for the Bosch BME680 temperature/humidity/pressure/air quality sensor. This driver is ported from the [Bosch C driver](https://github.com/BoschSensortec/BME680_driver). 
 
