@@ -411,20 +411,20 @@ namespace Bme680Driver
         /// </summary>
         private void SetDefaultConfiguration()
         {
-            // Read temperature before setting other sampling rates for faster measurement
+            // Enable temperature, humidity and pressure sampling
             TemperatureSampling = Sampling.X1;
-            var result = PerformMeasurement();
-
-            // Set remaining sampling rates and filter
             HumiditySampling = Sampling.X1;
             PressureSampling = Sampling.X1;
             FilterCoefficient = FilterCoefficient.C0;
 
-            // Set basic heater profile
-            GasConversionIsEnabled = true;
-            HeaterIsEnabled = true;
+            var result = PerformMeasurement();
+
+            // save basic heater config
             SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, result.Temperature);
             CurrentHeaterProfile = HeaterProfile.Profile1;
+
+            GasConversionIsEnabled = true;
+            HeaterIsEnabled = true;
         }
 
         /// <summary>
@@ -452,15 +452,13 @@ namespace Bme680Driver
         /// <returns>Atmospheric pressure in Pa.</returns>
         private double ReadPressure()
         {
-            if (_temperatureFine == int.MinValue)
-                return double.NaN;
-
-            if (PressureSampling == Sampling.Skipped)
+            if (_temperatureFine == int.MinValue || PressureSampling == Sampling.Skipped)
                 return double.NaN;
 
             // Read 20 bit uncompensated pressure value from registers
             var p1 = Read16BitsFromRegister((byte)Register.PRESS, Endianness.BigEndian);
             var p2 = Read8BitsFromRegister((byte)Register.PRESS + 2 * sizeof(byte));
+
 
             // Combine the two values, p2 is only 4 bit
             var press = (uint)(p1 << 4) + (uint)(p2 >> 4);
@@ -474,10 +472,7 @@ namespace Bme680Driver
         /// <returns>Humidity in percent.</returns>
         private double ReadHumidity()
         {
-            if (_temperatureFine == int.MinValue)
-                return int.MinValue;
-
-            if (HumiditySampling == Sampling.Skipped)
+            if (_temperatureFine == int.MinValue || HumiditySampling == Sampling.Skipped)
                 return double.NaN;
 
             // Read 16 bit uncompensated humidity value from registers
