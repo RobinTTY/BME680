@@ -1,7 +1,7 @@
 ﻿namespace Bme680Driver
 {
     /// <summary>
-    /// 10 addressable heater profiles saved on the Bme680.
+    /// 10 addressable heater profiles stored on the Bme680.
     /// </summary>
     public enum HeaterProfile : byte
     {

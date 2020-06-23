@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <ApplicationIcon />
     <StartupObject />
-    <Version>1.0.10</Version>
+    <Version>1.1.0</Version>
     <Authors>Robin Mueller</Authors>
     <Company />
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -13,10 +13,11 @@
     <Copyright>© Robin Mueller</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>Bosch Bme680 Sensor Environmental IoT</PackageTags>
-    <PackageReleaseNotes>Removed logging</PackageReleaseNotes>
+    <PackageReleaseNotes>Breaking Change!. Upgrade to .Net 5. Simplified API usage.</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/RobinTTY/BME680</RepositoryUrl>
     <PackageProjectUrl>https://github.com/RobinTTY/BME680</PackageProjectUrl>
     <Description>Driver for the Bme680 environmental sensor. Provides a full range API for the entire sensor functionality.</Description>
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -24,7 +25,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Device.Gpio" Version="0.1.0-prerelease.19310.5" />
+    <Compile Include="Bme680.cs" />
+    <Compile Include="Bme680ReadResult.cs" />
+    <Compile Include="CalibrationData.cs" />
+    <Compile Include="FilterCoefficient.cs" />
+    <Compile Include="HeaterProfile.cs" />
+    <Compile Include="HeaterProfileConfiguration.cs" />
+    <Compile Include="Mask.cs" />
+    <Compile Include="PowerMode.cs" />
+    <Compile Include="Register.cs" />
+    <Compile Include="Sampling.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Device.Gpio" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

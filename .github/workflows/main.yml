@@ -1,0 +1,21 @@
+name: Build Library
+
+on:
+  push
+  
+jobs:
+
+  Build-Library:
+    name: Build library
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '5.0.100-preview.5.20279.10'
+      - name: Build Bme680 project
+        run: dotnet build --configuration Release src/
+      - name: Build Bme680 samples
+        run: dotnet build --configuration Release src/Bme680/samples/BasicSample && dotnet build --configuration Release src/Bme680/samples/AdvancedSample
