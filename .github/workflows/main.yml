@@ -17,3 +17,5 @@ jobs:
           dotnet-version: '5.0.100-preview.5.20279.10'
       - name: Build Bme680 project
         run: dotnet build --configuration Release src/
+      - name: Build Bme680 samples
+        run: dotnet build --configuration Release src/Bme680/samples/BasicSample && dotnet build --configuration Release src/Bme680/samples/AdvancedSample
