@@ -10,7 +10,7 @@
         /// </summary>
         public double Temperature { get; set; }
         /// <summary>
-        /// Relative humidity.
+        /// Relative humidity in percent.
         /// </summary>
         public double Humidity { get; set; }
         /// <summary>
@@ -18,7 +18,7 @@
         /// </summary>
         public double Pressure { get; set; }
         /// <summary>
-        /// Gets the last measured gas resistance in Ohm from the corresponding register.
+        /// Gas resistance in Ohm.
         /// </summary>
         public double GasResistance { get; set; }
     }

@@ -290,7 +290,7 @@ namespace Bme680Driver
         }
 
         /// <summary>
-        /// Performs a measurement by setting the sensor to forced mode, awaits the result.
+        /// Performs an asynchronous measurement by setting the sensor to forced mode, awaits the result.
         /// </summary>
         /// <returns><see cref="Bme680ReadResult"/> containing the measured values.</returns>
         public async Task<Bme680ReadResult> PerformMeasurementAsync()
@@ -301,6 +301,10 @@ namespace Bme680Driver
             return ReadResultRegisters();
         }
 
+        /// <summary>
+        /// Performs a measurement by setting the sensor to forced mode, awaits the result.
+        /// </summary>
+        /// <returns><see cref="Bme680ReadResult"/> containing the measured values.</returns>
         public Bme680ReadResult PerformMeasurement()
         {
             var duration = GetProfileDuration(CurrentHeaterProfile);
