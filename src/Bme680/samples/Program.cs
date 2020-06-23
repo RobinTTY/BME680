@@ -17,10 +17,10 @@ namespace Bme680Sample
             {
                 var measurement = await bme680.PerformMeasurementAsync();
 
-                Console.WriteLine($"Temperature: {measurement.Temperature}");
-                Console.WriteLine($"Humidity: {measurement.Humidity}");
-                Console.WriteLine($"Pressure: {measurement.Pressure}");
-                Console.WriteLine($"Gas Resistance: {measurement.GasResistance}");
+                Console.WriteLine($"Temperature: {measurement.Temperature:0.##}°C");
+                Console.WriteLine($"Humidity: {measurement.Humidity:0.##}%");
+                Console.WriteLine($"Pressure: {measurement.Pressure:0.##} Pa");
+                Console.WriteLine($"Gas Resistance: {measurement.GasResistance:0.##} Ohm");
                 Console.WriteLine();
 
                 await Task.Delay(1000);

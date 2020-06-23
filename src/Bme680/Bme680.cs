@@ -8,7 +8,6 @@ using System.Device.Spi;
 using System.Linq;
 using System.Threading.Tasks;
 
-// TODO: _initialized needed?
 namespace Bme680Driver
 {
     /// <summary>
@@ -73,7 +72,7 @@ namespace Bme680Driver
                 throw new Exception($"Device ID {readSignature} is not the same as expected {DeviceId}. Please check if you are using the right device.");
 
             _calibrationData.ReadFromDevice(this);
-            SetDefaultConfiguration();
+            TriggerSoftReset();
         }
 
         /// <summary>
@@ -290,7 +289,6 @@ namespace Bme680Driver
             SetDefaultConfiguration();
         }
 
-        // TODO: Create blocking version
         /// <summary>
         /// Performs a measurement by setting the sensor to forced mode, awaits the result.
         /// </summary>
@@ -299,10 +297,6 @@ namespace Bme680Driver
         {
             var duration = GetProfileDuration(CurrentHeaterProfile);
             SetPowerMode(PowerMode.Forced);
-
-            if (GasConversionIsEnabled)
-                HeaterIsEnabled = false;
-
             await Task.Delay(duration);
             return ReadResultRegisters();
         }
@@ -311,10 +305,6 @@ namespace Bme680Driver
         {
             var duration = GetProfileDuration(CurrentHeaterProfile);
             SetPowerMode(PowerMode.Forced);
-
-            if (GasConversionIsEnabled)
-                HeaterIsEnabled = false;
-
             Task.Delay(duration).Wait();
             return ReadResultRegisters();
         }
@@ -406,10 +396,6 @@ namespace Bme680Driver
         /// <param name="powerMode"></param>
         private void SetPowerMode(PowerMode powerMode)
         {
-            // TODO: check need for initialized value
-            //if (!_initialized)
-            //    InitDevice();
-
             var status = Read8BitsFromRegister((byte)Register.CTRL_MEAS);
             status = (byte)((status & (byte)~Mask.PWR_MODE) | (byte)powerMode);
 
@@ -432,6 +418,7 @@ namespace Bme680Driver
 
             // Set basic heater profile
             GasConversionIsEnabled = true;
+            HeaterIsEnabled = true;
             SaveHeaterProfileToDevice(HeaterProfile.Profile1, 320, 150, result.Temperature);
             CurrentHeaterProfile = HeaterProfile.Profile1;
         }
