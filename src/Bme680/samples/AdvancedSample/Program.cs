@@ -9,6 +9,7 @@ namespace Bme680Sample
     {
         static async Task Main(string[] args)
         {
+            // The BME680 uses either 0x76 or 0x77 as I2C address, the address has to be specified here
             var settings = new I2cConnectionSettings(1, Bme680.SecondaryI2cAddress);
             var i2CDevice = I2cDevice.Create(settings);
             using var bme680 = new Bme680(i2CDevice);
